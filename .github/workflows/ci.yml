@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+      - name: Unit tests
+        run: pnpm test
+
+      - name: No-network gate (shipped bundles make zero external calls)
+        run: pnpm check:no-network
+
+  # TODO: payload-at-rest integration gate — boots the server against a Redis
+  # service container, runs a workload with sentinel strings in job payloads,
+  # then asserts those strings appear in NO key outside `bull:*` and nowhere on
+  # disk. Added once the server + memory/redis stores land.

@@ -1,0 +1,27 @@
+{
+  "name": "@bullwatch/core",
+  "version": "0.0.0",
+  "description": "Core server and storage for bullwatch — a deep, local-first BullMQ dashboard.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.6.14"
+  },
+  "peerDependencies": {
+    "bullmq": ">=5.0.0"
+  },
+  "devDependencies": {
+    "bullmq": "^5.34.0"
+  }
+}
