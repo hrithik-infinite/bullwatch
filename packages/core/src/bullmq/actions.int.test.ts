@@ -7,11 +7,13 @@ import {
   stopSharedMemoryServer,
 } from "../testing/redis-harness.js";
 import {
+  JobNotReplayableError,
   ReadOnlyError,
   bulkRemove,
   cleanQueue,
   pauseQueue,
   removeJob,
+  replayJob,
   resumeQueue,
   retryJob,
 } from "./actions.js";
@@ -114,6 +116,88 @@ describe("job actions (integration, real Redis)", () => {
     expect(result.succeeded.sort()).toEqual([a.id, b.id].sort());
     expect(result.failed).toHaveLength(1);
     expect(result.failed[0]?.id).toBe("missing");
+  });
+
+  it("replays a failed job as a new job with overridden data, preserving the original", async () => {
+    const q = registry.getQueue("email");
+    const w = new Worker(
+      "email",
+      async (): Promise<void> => {
+        throw new Error("boom");
+      },
+      { connection: ctx.connectionOptions, prefix: "bull" },
+    );
+    worker = w;
+    await w.waitUntilReady();
+    const original = await q.add("welcome", { userId: 1 }, { attempts: 1, priority: 5 });
+    expect(await pollUntil(async () => ((await getQueueSummary(q)).counts.failed ?? 0) >= 1)).toBe(
+      true,
+    );
+
+    const result = await replayJob(
+      q,
+      original.id as string,
+      { data: { userId: 1, fixed: true } },
+      { readOnly: false },
+    );
+    expect(result.originalId).toBe(original.id);
+    expect(result.newJobId).not.toBe(original.id);
+    expect(result.removedOriginal).toBe(false);
+
+    // Original failed job is untouched (audit trail preserved).
+    const orig = await getJobDetail(q, original.id as string, Date.now());
+    expect(orig?.data).toEqual({ userId: 1 });
+    expect(orig?.failedReason).toBe("boom");
+    // The replay carries execution-shape opts and the new payload.
+    const replayed = await getJobDetail(q, result.newJobId as string, Date.now());
+    expect(replayed?.data).toEqual({ userId: 1, fixed: true });
+    expect((replayed?.opts as { priority?: number })?.priority).toBe(5);
+  });
+
+  it("removes the original when removeOriginal is set", async () => {
+    const q = registry.getQueue("email");
+    const w = new Worker(
+      "email",
+      async (): Promise<void> => {
+        throw new Error("boom");
+      },
+      {
+        connection: ctx.connectionOptions,
+        prefix: "bull",
+      },
+    );
+    worker = w;
+    await w.waitUntilReady();
+    const original = await q.add("welcome", {}, { attempts: 1 });
+    expect(await pollUntil(async () => ((await getQueueSummary(q)).counts.failed ?? 0) >= 1)).toBe(
+      true,
+    );
+    const result = await replayJob(
+      q,
+      original.id as string,
+      { data: {}, removeOriginal: true },
+      {
+        readOnly: false,
+      },
+    );
+    expect(result.removedOriginal).toBe(true);
+    expect(await getJobDetail(q, original.id as string, Date.now())).toBeNull();
+  });
+
+  it("refuses to replay a non-failed job with JobNotReplayableError", async () => {
+    const q = registry.getQueue("email");
+    const job = await q.add("welcome", { userId: 1 }); // waiting, not failed
+    await expect(
+      replayJob(q, job.id as string, { data: {} }, { readOnly: false }),
+    ).rejects.toBeInstanceOf(JobNotReplayableError);
+  });
+
+  it("refuses replay in read-only mode", async () => {
+    const q = registry.getQueue("email");
+    const job = await q.add("welcome", {});
+    await expect(
+      replayJob(q, job.id as string, { data: {} }, { readOnly: true }),
+    ).rejects.toBeInstanceOf(ReadOnlyError);
   });
 
   it("cleans completed jobs", async () => {

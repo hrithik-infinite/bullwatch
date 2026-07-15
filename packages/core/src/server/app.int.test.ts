@@ -269,6 +269,77 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     }
   });
 
+  it("replays a failed job over HTTP and rejects bad requests", async () => {
+    const { Worker } = await import("bullmq");
+    app = build();
+    const worker = new Worker(
+      "email",
+      async (): Promise<void> => {
+        throw new Error("boom");
+      },
+      {
+        connection: ctx.connectionOptions,
+        prefix: "bull",
+      },
+    );
+    await worker.waitUntilReady();
+    try {
+      const job = await app.registry
+        .getQueue("email")
+        .add("welcome", { userId: 1 }, { attempts: 1 });
+
+      // Wait for it to fail.
+      const start = Date.now();
+      while (Date.now() - start < 10_000) {
+        const s = await getJson(app, "/api/queues/email");
+        if ((s.body.counts.failed ?? 0) >= 1) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+
+      // Missing `data` key → 400.
+      const bad = await getJson(app, `/api/queues/email/jobs/${job.id}/replay`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ removeOriginal: false }),
+      });
+      expect(bad.status).toBe(400);
+
+      // Valid replay → 200 with a new job id.
+      const ok = await getJson(app, `/api/queues/email/jobs/${job.id}/replay`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ data: { userId: 1, fixed: true } }),
+      });
+      expect(ok.status).toBe(200);
+      expect(ok.body.newJobId).toBeTruthy();
+      expect(ok.body.originalId).toBe(job.id);
+    } finally {
+      await worker.close();
+    }
+  });
+
+  it("returns 409 when replaying a non-failed job", async () => {
+    app = build();
+    const job = await app.registry.getQueue("email").add("welcome", { userId: 1 });
+    const res = await getJson(app, `/api/queues/email/jobs/${job.id}/replay`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data: {} }),
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it("blocks replay with 403 in read-only mode", async () => {
+    app = build(true);
+    const job = await app.registry.getQueue("email").add("welcome", {});
+    const res = await getJson(app, `/api/queues/email/jobs/${job.id}/replay`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ data: {} }),
+    });
+    expect(res.status).toBe(403);
+  });
+
   it("lists job schedulers over HTTP", async () => {
     app = build();
     await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });

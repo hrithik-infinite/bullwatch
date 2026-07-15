@@ -1,4 +1,4 @@
-import type { JobType, Queue } from "bullmq";
+import type { JobType, JobsOptions, Queue } from "bullmq";
 
 /** Thrown when a mutating action is attempted while the dashboard is read-only. */
 export class ReadOnlyError extends Error {
@@ -13,6 +13,14 @@ export class JobNotFoundError extends Error {
   constructor(id: string) {
     super(`job "${id}" not found`);
     this.name = "JobNotFoundError";
+  }
+}
+
+/** Thrown when replay targets a job that is not in a replayable state. */
+export class JobNotReplayableError extends Error {
+  constructor(id: string, state: string) {
+    super(`job "${id}" is "${state}"; only failed jobs can be replayed`);
+    this.name = "JobNotReplayableError";
   }
 }
 
@@ -35,6 +43,72 @@ export async function retryJob(queue: Queue, id: string, ctx: ActionContext): Pr
   assertWritable(ctx, "retry");
   const job = await requireJob(queue, id);
   await job.retry();
+}
+
+export interface ReplayOptions {
+  /** The overridden payload for the new job. May be any JSON value, incl. null. */
+  readonly data: unknown;
+  /** Remove the original failed job after enqueuing the replay. Default false. */
+  readonly removeOriginal?: boolean;
+}
+
+export interface ReplayResult {
+  readonly originalId: string;
+  readonly newJobId: string | null;
+  readonly removedOriginal: boolean;
+}
+
+// Execution-shape opts we carry from the failed job onto the replay. We
+// deliberately DROP identity/scheduling/linkage opts (jobId, delay, repeat,
+// parent, deduplication/debounce, telemetry): carrying jobId would collide,
+// a dedup key could silently swallow the replay, and repeat/parent would spawn
+// a scheduler or re-link a flow child — none of which "re-run this once" means.
+const REPLAY_CARRY_KEYS = [
+  "attempts",
+  "backoff",
+  "priority",
+  "lifo",
+  "removeOnComplete",
+  "removeOnFail",
+  "sizeLimit",
+  "keepLogs",
+  "stackTraceLimit",
+] as const satisfies ReadonlyArray<keyof JobsOptions>;
+
+function carryOverOpts(opts: JobsOptions): JobsOptions {
+  const out: Record<string, unknown> = {};
+  for (const key of REPLAY_CARRY_KEYS) {
+    if (opts[key] !== undefined) out[key] = opts[key];
+  }
+  return out as JobsOptions;
+}
+
+/**
+ * Replay a failed job with an overridden payload. Adds a NEW job (new id) on
+ * the same queue/name rather than editing the failed job in place, so the
+ * original failure — data, reason, stacktrace — survives for audit; the replay
+ * is modeled honestly as a distinct execution. Only failed jobs are replayable.
+ * The override payload goes straight to queue.add and is never persisted by
+ * bullwatch.
+ */
+export async function replayJob(
+  queue: Queue,
+  id: string,
+  replay: ReplayOptions,
+  ctx: ActionContext,
+): Promise<ReplayResult> {
+  assertWritable(ctx, "replay");
+  const job = await requireJob(queue, id);
+  const state = await job.getState();
+  if (state !== "failed") throw new JobNotReplayableError(id, state);
+  const opts = carryOverOpts((job.opts ?? {}) as JobsOptions);
+  const newJob = await queue.add(job.name, replay.data, opts);
+  let removedOriginal = false;
+  if (replay.removeOriginal) {
+    await job.remove();
+    removedOriginal = true;
+  }
+  return { originalId: id, newJobId: newJob.id ?? null, removedOriginal };
 }
 
 /** Promote a delayed job to run immediately. */

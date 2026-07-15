@@ -4,6 +4,7 @@ import { basicAuth } from "hono/basic-auth";
 import {
   type CleanState,
   JobNotFoundError,
+  JobNotReplayableError,
   ReadOnlyError,
   bulkRemove,
   bulkRetry,
@@ -11,6 +12,7 @@ import {
   pauseQueue,
   promoteJob,
   removeJob,
+  replayJob,
   resumeQueue,
   retryJob,
 } from "../bullmq/actions.js";
@@ -264,6 +266,14 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     });
   });
 
+  // Shared domain-error → HTTP-status mapping for every mutating route.
+  const mapDomainError = (c: Context, err: unknown): Response | null => {
+    if (err instanceof ReadOnlyError) return c.json({ error: err.message }, 403);
+    if (err instanceof JobNotFoundError) return c.json({ error: err.message }, 404);
+    if (err instanceof JobNotReplayableError) return c.json({ error: err.message }, 409);
+    return null;
+  };
+
   const mutate = async (c: Context, action: (queue: Queue, id: string) => Promise<void>) => {
     const queue = await resolve(c.req.param("name"));
     if (!queue) return c.json({ error: "queue not found" }, 404);
@@ -273,8 +283,8 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
       await action(queue, id);
       return c.json({ ok: true });
     } catch (err) {
-      if (err instanceof ReadOnlyError) return c.json({ error: err.message }, 403);
-      if (err instanceof JobNotFoundError) return c.json({ error: err.message }, 404);
+      const mapped = mapDomainError(c, err);
+      if (mapped) return mapped;
       throw err;
     }
   };
@@ -288,6 +298,26 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
   hono.delete("/api/queues/:name/jobs/:id", (c) =>
     mutate(c, (queue, id) => removeJob(queue, id, { readOnly })),
   );
+  // Replay: re-enqueue a failed job with an overridden payload as a NEW job.
+  hono.post("/api/queues/:name/jobs/:id/replay", (c) =>
+    guard(c, async (queue) => {
+      const id = c.req.param("id");
+      if (!id) return c.json({ error: "job id required" }, 400);
+      const body = (await c.req.json().catch(() => ({}))) as {
+        data?: unknown;
+        removeOriginal?: unknown;
+      };
+      // Require the `data` key to be present, but allow null/0/false/"" as values.
+      if (!("data" in body)) return c.json({ error: "body must include a `data` field" }, 400);
+      const result = await replayJob(
+        queue,
+        id,
+        { data: body.data, removeOriginal: body.removeOriginal === true },
+        { readOnly },
+      );
+      return c.json({ ok: true, ...result });
+    }),
+  );
 
   // Queue-level and bulk mutations: resolve + authorize, map domain errors.
   const guard = async (c: Context, fn: (queue: Queue) => Promise<Response>): Promise<Response> => {
@@ -296,8 +326,8 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     try {
       return await fn(queue);
     } catch (err) {
-      if (err instanceof ReadOnlyError) return c.json({ error: err.message }, 403);
-      if (err instanceof JobNotFoundError) return c.json({ error: err.message }, 404);
+      const mapped = mapDomainError(c, err);
+      if (mapped) return mapped;
       throw err;
     }
   };
