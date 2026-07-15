@@ -130,6 +130,24 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(status).toBe(404);
   });
 
+  it("enforces basic auth when configured", async () => {
+    app = createBullwatch({
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+      queues: ["email"],
+      metricsStore: store,
+      auth: { username: "admin", password: "secret" },
+    });
+    const anon = await app.fetch(new Request(`${ORIGIN}/api/health`));
+    expect(anon.status).toBe(401);
+
+    const creds = Buffer.from("admin:secret").toString("base64");
+    const authed = await app.fetch(
+      new Request(`${ORIGIN}/api/health`, { headers: { authorization: `Basic ${creds}` } }),
+    );
+    expect(authed.status).toBe(200);
+  });
+
   it("exposes a Prometheus scrape endpoint", async () => {
     app = build();
     await app.registry.getQueue("email").add("welcome", {});

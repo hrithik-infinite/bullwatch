@@ -1,0 +1,20 @@
+{
+  "name": "bullwatch",
+  "version": "0.0.0",
+  "description": "Standalone bullwatch server — a deep, local-first BullMQ dashboard. Run with npx bullwatch or Docker.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "bullwatch": "./dist/cli.js"
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bullwatch/core": "workspace:*",
+    "bullmq": "^5.34.0",
+    "ioredis": "^5.11.1"
+  }
+}

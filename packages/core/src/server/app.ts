@@ -1,5 +1,6 @@
 import type { ConnectionOptions, JobType, Queue } from "bullmq";
 import { type Context, Hono } from "hono";
+import { basicAuth } from "hono/basic-auth";
 import {
   type CleanState,
   JobNotFoundError,
@@ -38,6 +39,8 @@ export interface BullwatchOptions {
   readonly metricsStore?: MetricsStore;
   /** Start a metrics collector per queue on startup. Default false. */
   readonly collectMetrics?: boolean;
+  /** Optional HTTP Basic auth over every route (timing-safe compare). */
+  readonly auth?: { readonly username: string; readonly password: string };
 }
 
 export interface BullwatchApp {
@@ -90,6 +93,10 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
   });
 
   const hono = new Hono();
+
+  if (options.auth) {
+    hono.use("*", basicAuth({ username: options.auth.username, password: options.auth.password }));
+  }
 
   hono.get("/api/health", (c) =>
     c.json({ status: "ok", readOnly, metricsStore: metricsStore.kind }),
