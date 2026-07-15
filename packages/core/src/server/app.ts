@@ -1,6 +1,8 @@
 import type { ConnectionOptions, JobType, Queue } from "bullmq";
 import { type Context, Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
+import { AlertEvaluator } from "../alerts/evaluator.js";
+import type { AlertsConfig } from "../alerts/rules.js";
 import {
   type CleanState,
   JobNotFoundError,
@@ -55,6 +57,13 @@ export interface BullwatchOptions {
    * matches against, so masked fields can't be probed out via search.
    */
   readonly mask?: ReadonlyArray<string>;
+  /**
+   * Threshold alert rules + webhook delivery. When set, a background evaluator
+   * checks the rules on an interval and POSTs breaches to the configured URLs.
+   * Requires metrics to be flowing (collectMetrics / startMetrics) for
+   * failure-rate and latency rules. Fires even in read-only mode (observation).
+   */
+  readonly alerts?: AlertsConfig;
 }
 
 export interface BullwatchApp {
@@ -64,6 +73,8 @@ export interface BullwatchApp {
   readonly readOnly: boolean;
   /** Start (idempotently) a metrics collector for every known queue. */
   startMetrics(): Promise<void>;
+  /** Start (idempotently) the alert evaluator, if alerts are configured. */
+  startAlerts(): void;
   close(): Promise<void>;
 }
 
@@ -425,7 +436,24 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     );
   };
 
+  let evaluator: AlertEvaluator | null = null;
+  const startAlerts = (): void => {
+    if (evaluator || !options.alerts) return;
+    evaluator = new AlertEvaluator({
+      store: metricsStore,
+      getQueue: (name) => registry.getQueue(name),
+      config: options.alerts,
+    });
+    evaluator.start();
+  };
+
+  // Read-only snapshot of current alert rule status (for the UI). Empty when
+  // alerts are not configured.
+  hono.get("/api/alerts", (c) => c.json({ alerts: evaluator?.snapshot() ?? [] }));
+
   if (options.collectMetrics) void startMetrics();
+  // Start alerts after metrics so the collector begins feeding the store first.
+  if (options.alerts) startAlerts();
 
   return {
     fetch: (request: Request) => hono.fetch(request),
@@ -433,7 +461,9 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     metricsStore,
     readOnly,
     startMetrics,
+    startAlerts,
     close: async () => {
+      await evaluator?.close();
       await Promise.all([...collectors.values()].map((collector) => collector.close()));
       collectors.clear();
       await registry.close();

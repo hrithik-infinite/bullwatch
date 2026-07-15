@@ -1,3 +1,4 @@
+import type { AlertsConfig } from "@bullwatch/core";
 import type { RedisOptions } from "ioredis";
 
 export interface StandaloneConfig {
@@ -11,6 +12,8 @@ export interface StandaloneConfig {
   readonly metricsConnection?: RedisOptions;
   /** Dotted payload paths to redact before rendering (e.g. `user.ssn`). */
   readonly mask: string[];
+  /** Threshold alert rules + webhook delivery (from BULLWATCH_ALERTS JSON). */
+  readonly alerts?: AlertsConfig;
   readonly port: number;
 }
 
@@ -70,6 +73,19 @@ export function configFromEnv(env: NodeJS.ProcessEnv): StandaloneConfig {
     .map((s) => s.trim())
     .filter(Boolean);
 
+  // Alerts are configured as a JSON AlertsConfig (rules are structured, so a
+  // flat env DSL would be lossy). Invalid JSON is a hard config error.
+  let alerts: AlertsConfig | undefined;
+  if (env.BULLWATCH_ALERTS) {
+    try {
+      alerts = JSON.parse(env.BULLWATCH_ALERTS) as AlertsConfig;
+    } catch (err) {
+      throw new Error(
+        `BULLWATCH_ALERTS is not valid JSON: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
   return {
     connection: connectionFromEnv(env, "REDIS_URL"),
     prefix: env.BULLWATCH_PREFIX ?? "bull",
@@ -82,6 +98,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv): StandaloneConfig {
       ? parseRedisUrl(env.BULLWATCH_METRICS_REDIS)
       : undefined,
     mask,
+    alerts,
     port: Number(env.PORT ?? "3000"),
   };
 }

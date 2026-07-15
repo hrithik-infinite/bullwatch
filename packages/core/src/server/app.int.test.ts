@@ -380,6 +380,61 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(res.status).toBe(403);
   });
 
+  it("runs the alert evaluator end-to-end and exposes a status snapshot", async () => {
+    const { createServer } = await import("node:http");
+    const received: Array<Record<string, unknown>> = [];
+    const server = createServer((req, res) => {
+      const chunks: Buffer[] = [];
+      req.on("data", (c) => chunks.push(c as Buffer));
+      req.on("end", () => {
+        try {
+          received.push(JSON.parse(Buffer.concat(chunks).toString()));
+        } catch {
+          /* ignore */
+        }
+        res.statusCode = 200;
+        res.end("ok");
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, () => resolve()));
+    const port = (server.address() as { port: number }).port;
+    const hookUrl = `http://127.0.0.1:${port}/hook`;
+
+    app = createBullwatch({
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+      queues: ["email"],
+      metricsStore: store,
+      alerts: {
+        // queue_depth reads live counts — no collector/worker needed to trigger.
+        rules: [{ id: "depth", queue: "email", type: "queue_depth", threshold: 0 }],
+        webhookUrls: [hookUrl],
+        intervalMs: 100,
+      },
+    });
+    try {
+      await app.registry.getQueue("email").add("welcome", { userId: 1 }); // depth 1 > 0
+
+      const start = Date.now();
+      while (Date.now() - start < 10_000 && received.length === 0) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(received.length).toBeGreaterThanOrEqual(1);
+      expect(received[0]).toMatchObject({ event: "firing", type: "queue_depth", queue: "email" });
+
+      const snap = await getJson(app, "/api/alerts");
+      expect(snap.body.alerts[0]).toMatchObject({ ruleId: "depth", status: "firing" });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it("returns an empty alert snapshot when alerts are not configured", async () => {
+    app = build();
+    const snap = await getJson(app, "/api/alerts");
+    expect(snap.body.alerts).toEqual([]);
+  });
+
   it("lists job schedulers over HTTP", async () => {
     app = build();
     await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });

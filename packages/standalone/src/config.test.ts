@@ -37,6 +37,25 @@ describe("configFromEnv", () => {
     expect(cfg.mask).toEqual(["password", "user.ssn", "**.token"]);
   });
 
+  it("parses BULLWATCH_ALERTS as a JSON AlertsConfig", () => {
+    const cfg = configFromEnv({
+      BULLWATCH_ALERTS: JSON.stringify({
+        rules: [{ id: "d", queue: "email", type: "queue_depth", threshold: 1000 }],
+        webhookUrls: ["http://hooks.internal/x"],
+      }),
+    });
+    expect(cfg.alerts?.rules).toHaveLength(1);
+    expect(cfg.alerts?.webhookUrls).toEqual(["http://hooks.internal/x"]);
+  });
+
+  it("throws a clear error on invalid BULLWATCH_ALERTS JSON", () => {
+    expect(() => configFromEnv({ BULLWATCH_ALERTS: "{not json" })).toThrow(/not valid JSON/);
+  });
+
+  it("leaves alerts undefined when unset", () => {
+    expect(configFromEnv({}).alerts).toBeUndefined();
+  });
+
   it("uses an explicit queue list and disables discovery by default", () => {
     const cfg = configFromEnv({ BULLWATCH_QUEUES: "email, billing ,," });
     expect(cfg.queues).toEqual(["email", "billing"]);

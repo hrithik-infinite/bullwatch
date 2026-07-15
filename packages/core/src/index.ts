@@ -99,6 +99,37 @@ export {
 } from "./bullmq/failure-samples.js";
 export { MetricsCollector, type MetricsCollectorOptions } from "./bullmq/metrics-collector.js";
 
+// --- alerts ---
+export {
+  type AlertDecision,
+  type AlertEventKind,
+  type AlertNotification,
+  type AlertRule,
+  type AlertRuleType,
+  type AlertsConfig,
+  type AlertUnit,
+  type FailureRateRule,
+  type LatencyRule,
+  type QueueDepthRule,
+  type RuleEvaluation,
+  type RuleState,
+  buildNotification,
+  decide,
+  evaluateDepth,
+  evaluateFailureRate,
+  evaluateLatency,
+} from "./alerts/rules.js";
+export {
+  type AlertDeliver,
+  type WebhookDeliverOptions,
+  createWebhookDeliver,
+} from "./alerts/webhook.js";
+export {
+  type AlertEvaluatorOptions,
+  type RuleSnapshot,
+  AlertEvaluator,
+} from "./alerts/evaluator.js";
+
 // --- server ---
 export { type BullwatchApp, type BullwatchOptions, createBullwatch } from "./server/app.js";
 export { renderPrometheus } from "./server/prometheus.js";
