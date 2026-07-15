@@ -30,9 +30,10 @@ export async function listJobs(
   state: JobType,
   range: JobRange,
   now: number,
+  opts: { includeData?: boolean } = {},
 ): Promise<JobDTO[]> {
   const jobs = await queue.getJobs([state], range.start, range.end);
-  return jobs.map((job) => toJobDTO(job, queue.name, now));
+  return jobs.map((job) => toJobDTO(job, queue.name, now, { includeData: opts.includeData }));
 }
 
 export async function getJobDetail(queue: Queue, id: string, now: number): Promise<JobDTO | null> {
@@ -68,5 +69,27 @@ export async function getWorkers(queue: Queue): Promise<WorkerDTO[]> {
     name: w.name ?? null,
     ageSeconds: numOrNull(w.age),
     idleSeconds: numOrNull(w.idle),
+  }));
+}
+
+export interface SchedulerDTO {
+  readonly key: string;
+  readonly name: string | null;
+  readonly pattern: string | null;
+  readonly every: number | null;
+  readonly next: number | null;
+  readonly tz: string | null;
+}
+
+/** List repeatable-job schedulers (cron/every) with their next run time. */
+export async function listJobSchedulers(queue: Queue, range: JobRange): Promise<SchedulerDTO[]> {
+  const schedulers = await queue.getJobSchedulers(range.start, range.end, true);
+  return schedulers.map((s) => ({
+    key: s.key,
+    name: s.name ?? null,
+    pattern: s.pattern ?? null,
+    every: s.every !== undefined && s.every !== null ? Number(s.every) : null,
+    next: typeof s.next === "number" ? s.next : null,
+    tz: s.tz ?? null,
   }));
 }

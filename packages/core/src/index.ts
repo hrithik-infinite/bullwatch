@@ -40,24 +40,32 @@ export { type MetricEvent, type QueueEventKind, eventToAggregates } from "./doma
 
 // --- BullMQ readers / actions / search ---
 export { QueueRegistry, type QueueRegistryOptions } from "./bullmq/registry.js";
-export { type JobDTO, type JobLike, toJobDTO } from "./bullmq/job-dto.js";
+export { type JobDTO, type JobLike, type ToJobDTOOptions, toJobDTO } from "./bullmq/job-dto.js";
 export { type FlowNodeDTO, getFlowTree } from "./bullmq/flows.js";
 export {
   type JobRange,
   type QueueSummary,
+  type SchedulerDTO,
   type WorkerDTO,
   getJobDetail,
   getQueueSummary,
   getWorkers,
+  listJobSchedulers,
   listJobs,
 } from "./bullmq/readers.js";
 export {
   type ActionContext,
+  type BulkResult,
+  type CleanState,
   JobNotFoundError,
   ReadOnlyError,
+  bulkRemove,
+  bulkRetry,
   cleanQueue,
+  pauseQueue,
   promoteJob,
   removeJob,
+  resumeQueue,
   retryJob,
 } from "./bullmq/actions.js";
 export { type SearchOptions, type SearchResult, searchJobs } from "./bullmq/search.js";

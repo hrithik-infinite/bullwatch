@@ -1,9 +1,27 @@
 import type { ConnectionOptions, JobType, Queue } from "bullmq";
 import { type Context, Hono } from "hono";
-import { JobNotFoundError, ReadOnlyError, removeJob, retryJob } from "../bullmq/actions.js";
+import {
+  type CleanState,
+  JobNotFoundError,
+  ReadOnlyError,
+  bulkRemove,
+  bulkRetry,
+  cleanQueue,
+  pauseQueue,
+  promoteJob,
+  removeJob,
+  resumeQueue,
+  retryJob,
+} from "../bullmq/actions.js";
 import { getFlowTree } from "../bullmq/flows.js";
 import { MetricsCollector } from "../bullmq/metrics-collector.js";
-import { getJobDetail, getQueueSummary, getWorkers, listJobs } from "../bullmq/readers.js";
+import {
+  getJobDetail,
+  getQueueSummary,
+  getWorkers,
+  listJobSchedulers,
+  listJobs,
+} from "../bullmq/readers.js";
 import { QueueRegistry } from "../bullmq/registry.js";
 import { searchJobs } from "../bullmq/search.js";
 import type { MetricKind } from "../storage/aggregate.js";
@@ -39,6 +57,15 @@ const METRIC_KINDS: ReadonlySet<string> = new Set([
   "added",
   "wait_ms",
   "run_ms",
+]);
+const CLEAN_STATES: ReadonlySet<string> = new Set([
+  "completed",
+  "failed",
+  "delayed",
+  "wait",
+  "active",
+  "paused",
+  "prioritized",
 ]);
 
 function clampInt(value: string | undefined, fallback: number, min: number, max: number): number {
@@ -94,8 +121,17 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     const state = (c.req.query("state") ?? "waiting") as JobType;
     const start = clampInt(c.req.query("start"), 0, 0, Number.MAX_SAFE_INTEGER);
     const end = clampInt(c.req.query("end"), start + 19, start, start + 999);
-    const jobs = await listJobs(queue, state, { start, end }, Date.now());
+    const includeData = c.req.query("includeData") !== "false";
+    const jobs = await listJobs(queue, state, { start, end }, Date.now(), { includeData });
     return c.json({ jobs, state, start, end });
+  });
+
+  hono.get("/api/queues/:name/schedulers", async (c) => {
+    const queue = await resolve(c.req.param("name"));
+    if (!queue) return c.json({ error: "queue not found" }, 404);
+    const start = clampInt(c.req.query("start"), 0, 0, Number.MAX_SAFE_INTEGER);
+    const end = clampInt(c.req.query("end"), start + 49, start, start + 999);
+    return c.json({ schedulers: await listJobSchedulers(queue, { start, end }) });
   });
 
   hono.get("/api/queues/:name/search", async (c) => {
@@ -181,9 +217,66 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
   hono.post("/api/queues/:name/jobs/:id/retry", (c) =>
     mutate(c, (queue, id) => retryJob(queue, id, { readOnly })),
   );
+  hono.post("/api/queues/:name/jobs/:id/promote", (c) =>
+    mutate(c, (queue, id) => promoteJob(queue, id, { readOnly })),
+  );
   hono.delete("/api/queues/:name/jobs/:id", (c) =>
     mutate(c, (queue, id) => removeJob(queue, id, { readOnly })),
   );
+
+  // Queue-level and bulk mutations: resolve + authorize, map domain errors.
+  const guard = async (c: Context, fn: (queue: Queue) => Promise<Response>): Promise<Response> => {
+    const queue = await resolve(c.req.param("name"));
+    if (!queue) return c.json({ error: "queue not found" }, 404);
+    try {
+      return await fn(queue);
+    } catch (err) {
+      if (err instanceof ReadOnlyError) return c.json({ error: err.message }, 403);
+      if (err instanceof JobNotFoundError) return c.json({ error: err.message }, 404);
+      throw err;
+    }
+  };
+
+  hono.post("/api/queues/:name/pause", (c) =>
+    guard(c, async (queue) => {
+      await pauseQueue(queue, { readOnly });
+      return c.json({ ok: true });
+    }),
+  );
+  hono.post("/api/queues/:name/resume", (c) =>
+    guard(c, async (queue) => {
+      await resumeQueue(queue, { readOnly });
+      return c.json({ ok: true });
+    }),
+  );
+  hono.post("/api/queues/:name/clean", (c) =>
+    guard(c, async (queue) => {
+      const body = (await c.req.json().catch(() => ({}))) as {
+        state?: string;
+        graceMs?: number;
+        limit?: number;
+      };
+      if (!body.state || !CLEAN_STATES.has(body.state)) {
+        return c.json({ error: "invalid or missing state" }, 400);
+      }
+      const graceMs = clampInt(String(body.graceMs ?? 0), 0, 0, Number.MAX_SAFE_INTEGER);
+      const limit = clampInt(String(body.limit ?? 1000), 1000, 1, 100_000);
+      const removed = await cleanQueue(queue, body.state as CleanState, graceMs, limit, {
+        readOnly,
+      });
+      return c.json({ removed });
+    }),
+  );
+  const bulkRoute = (action: typeof bulkRetry) => (c: Context) =>
+    guard(c, async (queue) => {
+      const body = (await c.req.json().catch(() => ({}))) as { ids?: unknown };
+      const ids = Array.isArray(body.ids)
+        ? body.ids.filter((i): i is string => typeof i === "string")
+        : [];
+      return c.json(await action(queue, ids, { readOnly }));
+    });
+  hono.post("/api/queues/:name/jobs/bulk/retry", bulkRoute(bulkRetry));
+  hono.post("/api/queues/:name/jobs/bulk/remove", bulkRoute(bulkRemove));
 
   const collectors = new Map<string, MetricsCollector>();
   const startMetrics = async (): Promise<void> => {

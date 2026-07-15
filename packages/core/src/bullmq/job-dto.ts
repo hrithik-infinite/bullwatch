@@ -40,13 +40,30 @@ export interface JobDTO {
   readonly progress: number | string | boolean | object | null;
   readonly errorSignature: string | null;
   readonly parentKey: string | null;
+  /** True when the payload was withheld (payload-light listing). */
+  readonly dataOmitted: boolean;
+}
+
+export interface ToJobDTOOptions {
+  /**
+   * Include `data`/`returnvalue` in the DTO. Default true. List views pass
+   * false to keep large payloads off the wire until a row is opened — the
+   * payload is still read live from Redis, never persisted either way.
+   */
+  readonly includeData?: boolean;
 }
 
 /**
  * Map a BullMQ job to a bullwatch DTO. The payload (`data`, `returnvalue`) is
  * passed through for live rendering — it is never routed to the metrics store.
  */
-export function toJobDTO(job: JobLike, queue: string, now: number): JobDTO {
+export function toJobDTO(
+  job: JobLike,
+  queue: string,
+  now: number,
+  opts: ToJobDTOOptions = {},
+): JobDTO {
+  const includeData = opts.includeData ?? true;
   const failedReason = job.failedReason ?? null;
   return {
     id: job.id ?? null,
@@ -62,13 +79,14 @@ export function toJobDTO(job: JobLike, queue: string, now: number): JobDTO {
       finishedOn: job.finishedOn,
       now,
     }),
-    data: job.data,
+    data: includeData ? job.data : null,
     opts: job.opts,
-    returnvalue: job.returnvalue ?? null,
+    returnvalue: includeData ? (job.returnvalue ?? null) : null,
     failedReason,
     stacktrace: job.stacktrace ?? [],
     progress: job.progress ?? null,
     errorSignature: errorSignature(failedReason),
     parentKey: job.parentKey ?? null,
+    dataOmitted: !includeData,
   };
 }

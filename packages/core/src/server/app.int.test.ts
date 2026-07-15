@@ -140,6 +140,54 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(text).toContain('bullwatch_job_count{queue="email",state="waiting"} 2');
   });
 
+  it("pauses and resumes a queue over HTTP", async () => {
+    app = build();
+    await app.registry.getQueue("email").add("welcome", {});
+    const pause = await getJson(app, "/api/queues/email/pause", { method: "POST" });
+    expect(pause.status).toBe(200);
+    expect((await getJson(app, "/api/queues/email")).body.paused).toBe(true);
+    await getJson(app, "/api/queues/email/resume", { method: "POST" });
+    expect((await getJson(app, "/api/queues/email")).body.paused).toBe(false);
+  });
+
+  it("bulk-removes jobs over HTTP with per-id outcomes", async () => {
+    app = build();
+    const a = await app.registry.getQueue("email").add("welcome", {});
+    const b = await app.registry.getQueue("email").add("welcome", {});
+    const res = await getJson(app, "/api/queues/email/jobs/bulk/remove", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [a.id, b.id, "missing"] }),
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.succeeded).toHaveLength(2);
+    expect(res.body.failed).toHaveLength(1);
+  });
+
+  it("omits payload when includeData=false", async () => {
+    app = build();
+    await app.registry.getQueue("email").add("welcome", { secret: "shh" });
+    const withData = await getJson(app, "/api/queues/email/jobs?state=waiting");
+    expect(withData.body.jobs[0].data).toEqual({ secret: "shh" });
+    const light = await getJson(app, "/api/queues/email/jobs?state=waiting&includeData=false");
+    expect(light.body.jobs[0].data).toBeNull();
+    expect(light.body.jobs[0].dataOmitted).toBe(true);
+  });
+
+  it("lists job schedulers over HTTP", async () => {
+    app = build();
+    await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });
+    const res = await getJson(app, "/api/queues/email/schedulers");
+    expect(res.body.schedulers[0]?.key).toBe("digest");
+  });
+
+  it("blocks queue-level mutations with 403 in read-only mode", async () => {
+    app = build(true);
+    await app.registry.getQueue("email").add("welcome", {});
+    const res = await getJson(app, "/api/queues/email/pause", { method: "POST" });
+    expect(res.status).toBe(403);
+  });
+
   it("collects metrics end-to-end when started", async () => {
     const { Worker } = await import("bullmq");
     app = createBullwatch({

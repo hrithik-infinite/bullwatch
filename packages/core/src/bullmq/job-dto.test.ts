@@ -50,4 +50,20 @@ describe("toJobDTO", () => {
     const dto = toJobDTO({ ...completed, id: undefined }, "email", 3_000);
     expect(dto.id).toBeNull();
   });
+
+  it("withholds payload when includeData is false", () => {
+    const dto = toJobDTO(completed, "email", 3_000, { includeData: false });
+    expect(dto.data).toBeNull();
+    expect(dto.returnvalue).toBeNull();
+    expect(dto.dataOmitted).toBe(true);
+    // Non-payload fields still present.
+    expect(dto.name).toBe("welcome");
+    expect(dto.timings.runMs).toBe(1_000);
+  });
+
+  it("includes payload by default", () => {
+    const dto = toJobDTO(completed, "email", 3_000);
+    expect(dto.data).toEqual({ userId: 42 });
+    expect(dto.dataOmitted).toBe(false);
+  });
 });

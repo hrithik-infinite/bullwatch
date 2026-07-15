@@ -1,9 +1,12 @@
 name: CI
 
+# Temporarily disabled: runs on manual trigger only (Actions tab → Run workflow).
+# To re-enable automatic runs, restore the push/pull_request triggers below.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
+  # push:
+  #   branches: [main]
+  # pull_request:
 
 jobs:
   build:

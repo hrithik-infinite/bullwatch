@@ -51,16 +51,81 @@ export async function removeJob(queue: Queue, id: string, ctx: ActionContext): P
   await job.remove();
 }
 
+/** Pause a queue (workers stop picking up new jobs). */
+export async function pauseQueue(queue: Queue, ctx: ActionContext): Promise<void> {
+  assertWritable(ctx, "pause");
+  await queue.pause();
+}
+
+/** Resume a paused queue. */
+export async function resumeQueue(queue: Queue, ctx: ActionContext): Promise<void> {
+  assertWritable(ctx, "resume");
+  await queue.resume();
+}
+
+export type CleanState =
+  | "completed"
+  | "failed"
+  | "delayed"
+  | "wait"
+  | "active"
+  | "paused"
+  | "prioritized";
+
 /** Bulk-clean jobs in a state older than graceMs. Returns removed job ids. */
 export async function cleanQueue(
   queue: Queue,
-  state: "completed" | "failed" | "delayed" | "wait" | "active" | "paused" | "prioritized",
+  state: CleanState,
   graceMs: number,
   limit: number,
   ctx: ActionContext,
 ): Promise<string[]> {
   assertWritable(ctx, "clean");
   return queue.clean(graceMs, limit, state as Parameters<Queue["clean"]>[2]);
+}
+
+export interface BulkResult {
+  readonly requested: number;
+  readonly succeeded: string[];
+  readonly failed: Array<{ readonly id: string; readonly error: string }>;
+}
+
+async function runBulk(
+  queue: Queue,
+  ids: ReadonlyArray<string>,
+  ctx: ActionContext,
+  action: string,
+  each: (queue: Queue, id: string, ctx: ActionContext) => Promise<void>,
+): Promise<BulkResult> {
+  assertWritable(ctx, action);
+  const succeeded: string[] = [];
+  const failed: Array<{ id: string; error: string }> = [];
+  // Sequential: keeps Redis load predictable and errors attributable per id.
+  for (const id of ids) {
+    try {
+      await each(queue, id, ctx);
+      succeeded.push(id);
+    } catch (err) {
+      failed.push({ id, error: err instanceof Error ? err.message : String(err) });
+    }
+  }
+  return { requested: ids.length, succeeded, failed };
+}
+
+export function bulkRetry(
+  queue: Queue,
+  ids: ReadonlyArray<string>,
+  ctx: ActionContext,
+): Promise<BulkResult> {
+  return runBulk(queue, ids, ctx, "retry", retryJob);
+}
+
+export function bulkRemove(
+  queue: Queue,
+  ids: ReadonlyArray<string>,
+  ctx: ActionContext,
+): Promise<BulkResult> {
+  return runBulk(queue, ids, ctx, "remove", removeJob);
 }
 
 export type { JobType };
