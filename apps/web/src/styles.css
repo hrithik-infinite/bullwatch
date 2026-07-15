@@ -1,0 +1,193 @@
+/*
+ * bullwatch design system — ported verbatim from the approved design brief
+ * (bullwatch.dc.html). Dark-mode-first, dense, no web fonts. Theme via
+ * [data-bw-theme], density via [data-bw-density] on the root element.
+ */
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+#root {
+  height: 100%;
+}
+body {
+  background: #0b0c0e;
+  color: #e7e9ee;
+  font-family: var(--font-sans);
+}
+:root {
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono",
+    monospace;
+  --bg: #0b0c0e;
+  --bg-1: #111216;
+  --bg-2: #16181d;
+  --bg-3: #1c1f26;
+  --bg-inset: #0e0f12;
+  --border: #23262d;
+  --border-strong: #2e323b;
+  --border-faint: #1a1c21;
+  --text-0: #e7e9ee;
+  --text-1: #a7adb8;
+  --text-2: #727884;
+  --text-3: #4c525c;
+  --accent: #4c8dff;
+  --accent-strong: #6aa0ff;
+  --accent-weak: color-mix(in oklab, #4c8dff 15%, transparent);
+  --accent-line: color-mix(in oklab, #4c8dff 42%, transparent);
+  --st-waiting: #8a93a3;
+  --st-active: #22c3e6;
+  --st-completed: #3fb77e;
+  --st-failed: #f0616d;
+  --st-delayed: #e0a63c;
+  --st-paused: #a78bc8;
+  --st-prioritized: #8b7cf0;
+  --shadow: 0 1px 0 rgba(0, 0, 0, 0.3), 0 10px 30px -14px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 32px 70px -22px rgba(0, 0, 0, 0.78);
+  --row-h: 38px;
+  --cell-px: 14px;
+  --cell-py: 8px;
+  --fs-row: 13px;
+  --pad-card: 16px;
+  color-scheme: dark;
+}
+[data-bw-theme="light"] {
+  --bg: #fbfbfc;
+  --bg-1: #ffffff;
+  --bg-2: #f4f5f7;
+  --bg-3: #edeff2;
+  --bg-inset: #f7f8fa;
+  --border: #e4e7eb;
+  --border-strong: #d5d9e0;
+  --border-faint: #eef0f3;
+  --text-0: #15171c;
+  --text-1: #4c525d;
+  --text-2: #71767f;
+  --text-3: #a6acb5;
+  --accent: #2f6fe0;
+  --accent-strong: #2560cc;
+  --accent-weak: color-mix(in oklab, #2f6fe0 12%, transparent);
+  --accent-line: color-mix(in oklab, #2f6fe0 40%, transparent);
+  --st-waiting: #64748b;
+  --st-active: #0e8fb0;
+  --st-completed: #15915b;
+  --st-failed: #da3b49;
+  --st-delayed: #b27414;
+  --st-paused: #7c5fb0;
+  --st-prioritized: #5b49d6;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 10px 30px -14px rgba(16, 24, 40, 0.16);
+  --shadow-lg: 0 32px 70px -22px rgba(16, 24, 40, 0.26);
+  color-scheme: light;
+}
+[data-bw-density="compact"] {
+  --row-h: 29px;
+  --cell-px: 10px;
+  --cell-py: 4px;
+  --fs-row: 12.5px;
+  --pad-card: 13px;
+}
+::selection {
+  background: color-mix(in oklab, var(--accent) 38%, transparent);
+}
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 7px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+[data-bw-nav] {
+  color: var(--text-1);
+  transition: background 0.1s, color 0.1s;
+}
+[data-bw-nav]:hover {
+  background: var(--bg-2);
+  color: var(--text-0);
+}
+[data-bw-nav][aria-current="page"] {
+  background: var(--bg-2);
+  color: var(--text-0);
+}
+[data-bw-seg][aria-current="page"] {
+  background: var(--bg-1);
+  color: var(--text-0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+tr[data-bw-row] {
+  transition: background 0.08s;
+}
+tr[data-bw-row]:hover {
+  background: var(--bg-2);
+}
+[data-bw-cmd] {
+  transition: background 0.05s;
+}
+[data-bw-cmd][aria-selected="true"] {
+  background: var(--accent-weak);
+}
+[data-bw-tab] {
+  color: var(--text-2);
+}
+[data-bw-tab]:hover {
+  color: var(--text-0);
+}
+[data-bw-tab][aria-current="page"] {
+  color: var(--text-0);
+}
+[data-bw-ghost]:hover {
+  background: var(--bg-2);
+  color: var(--text-0);
+  border-color: var(--border-strong);
+}
+@keyframes bw-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@keyframes bw-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes bw-pop {
+  from {
+    transform: translateY(-8px) scale(0.985);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+@keyframes bw-over {
+  from {
+    transform: translateX(26px);
+    opacity: 0.4;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
