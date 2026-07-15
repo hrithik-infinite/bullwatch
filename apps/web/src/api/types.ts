@@ -46,6 +46,11 @@ export interface AggregateSeries {
   points: Array<{ ts: number; value: AggregateValue }>;
 }
 
+export interface FlowNodeDTO {
+  job: JobDTO;
+  children: FlowNodeDTO[];
+}
+
 export interface SearchResult {
   jobs: JobDTO[];
   scanned: number;

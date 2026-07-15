@@ -106,6 +106,41 @@ export function counterBuckets(
   return out;
 }
 
+/** Merge histogram points into N time buckets and return a percentile per bucket. */
+export function histogramPercentileBuckets(
+  series: AggregateSeries[],
+  from: number,
+  to: number,
+  n: number,
+  p: number,
+): number[] {
+  const width = Math.max(1, (to - from) / n);
+  const bucketHists: AggregateValue[] = Array.from({ length: n }, () => ({
+    kind: "histogram",
+    buckets: new Array(LATENCY_BOUNDS_MS.length + 1).fill(0),
+    totalCount: 0,
+    sum: 0,
+  }));
+  for (const s of series) {
+    for (const pt of s.points) {
+      if (pt.value.kind !== "histogram") continue;
+      const idx = Math.min(n - 1, Math.max(0, Math.floor((pt.ts - from) / width)));
+      const h = bucketHists[idx];
+      if (h && h.kind === "histogram") {
+        pt.value.buckets.forEach((v, i) => {
+          h.buckets[i] = (h.buckets[i] ?? 0) + v;
+        });
+        h.totalCount += pt.value.totalCount;
+        h.sum += pt.value.sum;
+      }
+    }
+  }
+  return bucketHists.map((h) => {
+    const v = percentile(h, p);
+    return Number.isFinite(v) ? v : 0;
+  });
+}
+
 export const STATE_COLOR: Record<string, string> = {
   waiting: "var(--st-waiting)",
   active: "var(--st-active)",

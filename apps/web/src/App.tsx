@@ -2,13 +2,51 @@ import { useEffect, useState } from "react";
 import { api } from "./api/client.js";
 import { CommandPalette } from "./components/CommandPalette.js";
 import { Header } from "./components/Header.js";
+import { JobDrawer } from "./components/JobDrawer.js";
 import { Sidebar } from "./components/Sidebar.js";
+import { mono } from "./components/primitives.js";
 import { usePoll } from "./hooks/usePoll.js";
+import { useToast } from "./lib/drawer.js";
 import { useRoute } from "./lib/router.js";
+import { Alerts } from "./screens/Alerts.js";
+import { Dlq } from "./screens/Dlq.js";
+import { Flows } from "./screens/Flows.js";
+import { Metrics } from "./screens/Metrics.js";
 import { Overview } from "./screens/Overview.js";
 import { QueueDetail } from "./screens/QueueDetail.js";
 import { Search } from "./screens/Search.js";
+import { Workers } from "./screens/Workers.js";
 import { Placeholder } from "./screens/shared.js";
+
+function Toast() {
+  const msg = useToast();
+  if (!msg) return null;
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: 22,
+        left: "50%",
+        transform: "translateX(-50%)",
+        zIndex: 70,
+        background: "var(--bg-2)",
+        border: "1px solid var(--border-strong)",
+        borderRadius: 10,
+        padding: "10px 16px",
+        boxShadow: "var(--shadow-lg)",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        animation: "bw-pop .16s ease",
+      }}
+    >
+      <span
+        style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--st-completed)" }}
+      />
+      <span style={mono({ fontSize: 12.5, color: "var(--text-0)" })}>{msg}</span>
+    </div>
+  );
+}
 import { AppProvider } from "./state.js";
 
 const CRUMB: Record<string, string> = {
@@ -88,42 +126,22 @@ function Shell() {
           )}
           {route.name === "queue" && <QueueDetail queue={route.queue} />}
           {route.name === "search" && <Search queues={queues} />}
-          {route.name === "workers" && (
-            <Placeholder
-              label="Workers"
-              note="Worker visibility — coming in the next slice (backend: GET /api/queues/:name/workers)."
-            />
-          )}
-          {route.name === "flows" && (
-            <Placeholder
-              label="Flows"
-              note="Flow / DAG view — coming next (backend: GET /api/queues/:name/flows/:id)."
-            />
-          )}
-          {route.name === "metrics" && (
-            <Placeholder
-              label="Metrics"
-              note="Cross-queue metrics with deploy-marker overlays — coming next."
-            />
-          )}
-          {route.name === "dlq" && (
-            <Placeholder
-              label="Dead-letter"
-              note="Failure analysis — coming next (backend: GET /api/queues/:name/failures)."
-            />
-          )}
-          {route.name === "alerts" && (
-            <Placeholder
-              label="Alerts"
-              note="Alert rule status — coming next (backend: GET /api/alerts)."
-            />
-          )}
+          {route.name === "workers" && <Workers queues={queues} />}
+          {route.name === "flows" && <Flows queues={queues} />}
+          {route.name === "metrics" && <Metrics queues={queues} />}
+          {route.name === "dlq" && <Dlq queues={queues} />}
+          {route.name === "alerts" && <Alerts />}
           {route.name === "system" && (
-            <Placeholder label="Design system" note="Component gallery." />
+            <Placeholder
+              label="Design system"
+              note="Component gallery — design tokens live in styles.css and components/primitives.tsx."
+            />
           )}
         </div>
       </main>
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} queues={queues} />
+      <JobDrawer />
+      <Toast />
     </div>
   );
 }

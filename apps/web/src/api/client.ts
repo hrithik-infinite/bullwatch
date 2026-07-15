@@ -2,6 +2,7 @@ import type {
   AggregateSeries,
   DeployMarker,
   FailureSummary,
+  FlowNodeDTO,
   JobDTO,
   MetricKind,
   QueueSummary,
@@ -107,6 +108,12 @@ export const api = {
 
   workers: (name: string, signal?: AbortSignal) =>
     get<{ workers: WorkerDTO[] }>(`/api/queues/${encodeURIComponent(name)}/workers`, signal),
+
+  flow: (name: string, id: string, signal?: AbortSignal) =>
+    get<FlowNodeDTO>(
+      `/api/queues/${encodeURIComponent(name)}/flows/${encodeURIComponent(id)}`,
+      signal,
+    ),
 
   alerts: (signal?: AbortSignal) => get<{ alerts: RuleSnapshot[] }>("/api/alerts", signal),
 

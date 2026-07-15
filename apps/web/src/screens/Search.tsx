@@ -3,6 +3,7 @@ import { api } from "../api/client.js";
 import type { QueueSummary, SearchResult } from "../api/types.js";
 import { Icons } from "../components/icons.js";
 import { Card, mono } from "../components/primitives.js";
+import { drawer } from "../lib/drawer.js";
 import { fmt, fmtAge } from "../lib/format.js";
 import { Screen } from "./shared.js";
 
@@ -193,7 +194,8 @@ export function Search({ queues }: { queues: QueueSummary[] | null }) {
                   <tr
                     key={j.id ?? Math.random()}
                     data-bw-row=""
-                    style={{ borderBottom: "1px solid var(--border-faint)" }}
+                    onClick={() => j.id && drawer.open(queue, j.id)}
+                    style={{ borderBottom: "1px solid var(--border-faint)", cursor: "pointer" }}
                   >
                     <td style={{ padding: "var(--cell-py) var(--cell-px)", width: "12%" }}>
                       <span style={mono({ fontSize: 12, color: "var(--accent)" })}>#{j.id}</span>

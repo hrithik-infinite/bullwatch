@@ -3,6 +3,7 @@ import { api } from "../api/client.js";
 import type { JobDTO, MetricKind } from "../api/types.js";
 import { Card, Meter, Pill, Sparkline, mono } from "../components/primitives.js";
 import { usePoll } from "../hooks/usePoll.js";
+import { drawer } from "../lib/drawer.js";
 import {
   STATE_COLOR,
   counterBuckets,
@@ -310,7 +311,8 @@ export function QueueDetail({ queue }: { queue: string }) {
                 <tr
                   key={j.id ?? Math.random()}
                   data-bw-row=""
-                  style={{ borderBottom: "1px solid var(--border-faint)" }}
+                  onClick={() => j.id && drawer.open(queue, j.id)}
+                  style={{ borderBottom: "1px solid var(--border-faint)", cursor: "pointer" }}
                 >
                   <td style={{ padding: "var(--cell-py) var(--cell-px)", width: "10%" }}>
                     <span style={mono({ fontSize: 12, color: "var(--accent)" })}>#{j.id}</span>
