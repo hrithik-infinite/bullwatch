@@ -1,0 +1,27 @@
+{
+  "name": "@bullwatch/hono",
+  "version": "0.0.0",
+  "description": "Hono adapter for bullwatch — mount the dashboard as a sub-app.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@bullwatch/core": "workspace:*"
+  },
+  "peerDependencies": {
+    "hono": "^4.0.0"
+  },
+  "devDependencies": {
+    "hono": "^4.6.14"
+  }
+}

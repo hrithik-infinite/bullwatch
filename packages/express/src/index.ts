@@ -33,7 +33,9 @@ export function bullwatchExpress(options: BullwatchOptions) {
 function toWebRequest(req: ExpressRequest): Request {
   // Host is irrelevant — the core handler routes on pathname only. Using a
   // fixed local origin keeps this request from ever implying a network target.
-  const url = `http://bullwatch.local${req.originalUrl}`;
+  // req.url is mount-relative (Express strips the app.use base path), so the
+  // core handler sees /api/... regardless of where the dashboard is mounted.
+  const url = `http://bullwatch.local${req.url}`;
   const headers = new Headers();
   for (const [key, value] of Object.entries(req.headers)) {
     if (Array.isArray(value)) for (const v of value) headers.append(key, v);
