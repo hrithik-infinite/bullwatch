@@ -30,6 +30,14 @@ describe("configFromEnv", () => {
     expect(cfg.persistMetrics).toBe(false);
     expect(cfg.auth).toBeUndefined();
     expect(cfg.mask).toEqual([]);
+    expect(cfg.collectMetrics).toBe(true);
+    expect(cfg.metricsRescanMs).toBe(30000);
+  });
+
+  it("allows disabling metrics collection and tuning the rescan interval", () => {
+    expect(configFromEnv({ BULLWATCH_COLLECT_METRICS: "false" }).collectMetrics).toBe(false);
+    expect(configFromEnv({ BULLWATCH_METRICS_RESCAN_MS: "5000" }).metricsRescanMs).toBe(5000);
+    expect(configFromEnv({ BULLWATCH_METRICS_RESCAN_MS: "0" }).metricsRescanMs).toBe(0);
   });
 
   it("parses a comma-separated mask list", () => {

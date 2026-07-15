@@ -20,5 +20,6 @@ EXPOSE 3000
 # Config via env: REDIS_URL, BULLWATCH_PREFIX, BULLWATCH_QUEUES, BULLWATCH_DISCOVER,
 # BULLWATCH_READONLY, BULLWATCH_AUTH_USERNAME/PASSWORD, BULLWATCH_PERSIST_METRICS,
 # BULLWATCH_METRICS_REDIS, BULLWATCH_MASK (comma-separated dotted paths to redact,
-# e.g. "password,user.ssn,**.token").
+# e.g. "password,user.ssn,**.token"), BULLWATCH_ALERTS (JSON alert rules),
+# BULLWATCH_COLLECT_METRICS (default true), BULLWATCH_METRICS_RESCAN_MS (default 30000).
 CMD ["node", "packages/standalone/dist/cli.js"]

@@ -14,6 +14,10 @@ export interface StandaloneConfig {
   readonly mask: string[];
   /** Threshold alert rules + webhook delivery (from BULLWATCH_ALERTS JSON). */
   readonly alerts?: AlertsConfig;
+  /** Tail QueueEvents into the metrics store. Default true. */
+  readonly collectMetrics: boolean;
+  /** Re-scan for newly-created queues every N ms. Default 30000; 0 disables. */
+  readonly metricsRescanMs: number;
   readonly port: number;
 }
 
@@ -99,6 +103,8 @@ export function configFromEnv(env: NodeJS.ProcessEnv): StandaloneConfig {
       : undefined,
     mask,
     alerts,
+    collectMetrics: parseBool(env.BULLWATCH_COLLECT_METRICS, true),
+    metricsRescanMs: Number(env.BULLWATCH_METRICS_RESCAN_MS ?? "30000"),
     port: Number(env.PORT ?? "3000"),
   };
 }

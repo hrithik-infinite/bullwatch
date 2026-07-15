@@ -22,6 +22,9 @@ export function buildApp(config: StandaloneConfig): BullwatchApp {
     auth: config.auth,
     mask: config.mask,
     alerts: config.alerts,
+    // Auto-start live metrics collection at construction for queues known now;
+    // the CLI adds a periodic rescan to pick up queues created later.
+    collectMetrics: config.collectMetrics,
     metricsStore,
   });
 }
