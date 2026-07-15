@@ -1,5 +1,6 @@
 import type { AggregateRecord, AggregateSeries, MetricKind } from "./aggregate.js";
 import { assertLabel } from "./labels.js";
+import type { DeployMarker, MarkerQuery } from "./markers.js";
 
 /** A query against persisted aggregates. */
 export interface MetricsQuery {
@@ -25,7 +26,14 @@ export interface MetricsStore {
   readonly kind: "memory" | "redis";
   write(records: ReadonlyArray<AggregateRecord>): Promise<void>;
   query(q: MetricsQuery): Promise<ReadonlyArray<AggregateSeries>>;
-  /** Retention horizon in ms; older buckets are dropped. */
+  /**
+   * Record a deploy marker (structured, length-capped, payload-free — see
+   * {@link assertMarkerPersistable}). Markers share the store's retention.
+   */
+  recordMarker(marker: DeployMarker): Promise<void>;
+  /** Query deploy markers in a time range, for chart overlay. */
+  queryMarkers(q: MarkerQuery): Promise<ReadonlyArray<DeployMarker>>;
+  /** Retention horizon in ms; older buckets and markers are dropped. */
   readonly retentionMs: number;
 }
 

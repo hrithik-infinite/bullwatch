@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AggregateRecord } from "./aggregate.js";
 import { emptyHistogram, observe, percentile } from "./histogram.js";
 import { InvalidLabelError } from "./labels.js";
+import { createMarker } from "./markers.js";
 import { MemoryMetricsStore } from "./memory-store.js";
 
 function counter(
@@ -94,6 +95,37 @@ describe("MemoryMetricsStore", () => {
       to: 120_000,
     });
     expect(grouped[0]?.points[0]?.value).toEqual({ kind: "counter", count: 1 });
+  });
+
+  it("records, range-filters, and queue-scopes deploy markers", async () => {
+    const store = new MemoryMetricsStore();
+    await store.recordMarker(createMarker({ ts: 1_000, label: "global" }, 0));
+    await store.recordMarker(createMarker({ ts: 2_000, label: "email", queue: "email" }, 0));
+    expect((await store.queryMarkers({ from: 0, to: 10_000 })).map((m) => m.label)).toEqual([
+      "global",
+      "email",
+    ]);
+    expect(
+      (await store.queryMarkers({ from: 0, to: 10_000, queue: "billing" })).map((m) => m.label),
+    ).toEqual(["global"]);
+    expect((await store.queryMarkers({ from: 1_500, to: 3_000 })).map((m) => m.label)).toEqual([
+      "email",
+    ]);
+  });
+
+  it("evicts markers older than retention and caps total count", async () => {
+    const store = new MemoryMetricsStore({ retentionMs: 1_000, maxMarkers: 2 });
+    await store.recordMarker(createMarker({ ts: 0, label: "old" }, 0));
+    await store.recordMarker(createMarker({ ts: 5_000, label: "new" }, 0)); // pushes cutoff to 4_000
+    // "old" (ts=0) is now beyond retention relative to newest (5_000) → evicted.
+    let markers = await store.queryMarkers({ from: 0, to: 10_000 });
+    expect(markers.map((m) => m.label)).toEqual(["new"]);
+
+    // maxMarkers=2: adding two more within window evicts the oldest surviving.
+    await store.recordMarker(createMarker({ ts: 5_500, label: "newer" }, 0));
+    await store.recordMarker(createMarker({ ts: 6_000, label: "newest" }, 0));
+    markers = await store.queryMarkers({ from: 0, to: 10_000 });
+    expect(markers.map((m) => m.label)).toEqual(["newer", "newest"]);
   });
 
   it("rejects a label long enough to be a leaked payload", async () => {

@@ -340,6 +340,46 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(res.status).toBe(403);
   });
 
+  it("records and queries deploy markers over HTTP", async () => {
+    app = build();
+    const rec = await getJson(app, "/api/deploys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ts: 5_000, label: "deploy v1.2.3", version: "1.2.3", queue: "email" }),
+    });
+    expect(rec.status).toBe(201);
+    expect(rec.body.marker.id).toBeTruthy();
+    expect(rec.body.marker.label).toBe("deploy v1.2.3");
+
+    const list = await getJson(app, "/api/deploys?from=0&to=10000");
+    expect(list.body.markers).toHaveLength(1);
+    expect(list.body.markers[0].version).toBe("1.2.3");
+
+    // queue filter returns global + scoped; a different queue excludes the scoped one.
+    const other = await getJson(app, "/api/deploys?from=0&to=10000&queue=billing");
+    expect(other.body.markers).toHaveLength(0);
+  });
+
+  it("rejects an invalid deploy marker with 400", async () => {
+    app = build();
+    const res = await getJson(app, "/api/deploys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "" }), // empty label
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("blocks recording a deploy marker with 403 in read-only mode", async () => {
+    app = build(true);
+    const res = await getJson(app, "/api/deploys", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ label: "nope" }),
+    });
+    expect(res.status).toBe(403);
+  });
+
   it("lists job schedulers over HTTP", async () => {
     app = build();
     await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });

@@ -31,6 +31,8 @@ import { searchJobs } from "../bullmq/search.js";
 import { summarizeFailures } from "../domain/failure-summary.js";
 import { compileMask } from "../domain/mask.js";
 import type { MetricKind } from "../storage/aggregate.js";
+import { InvalidLabelError } from "../storage/labels.js";
+import { InvalidMarkerError, createMarker } from "../storage/markers.js";
 import { MemoryMetricsStore } from "../storage/memory-store.js";
 import type { MetricsStore } from "../storage/metrics-store.js";
 import { renderPrometheus } from "./prometheus.js";
@@ -255,6 +257,36 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     if (!queue) return c.json({ error: "queue not found" }, 404);
     const job = await getJobDetail(queue, c.req.param("id"), Date.now(), { mask });
     return job ? c.json(job) : c.json({ error: "job not found" }, 404);
+  });
+
+  // Deploy markers: record a deploy (mutation, read-only guarded) and query a
+  // range for chart overlay. Markers are global by default; an optional queue
+  // scopes them. Structured + length-capped, never a payload.
+  hono.post("/api/deploys", async (c) => {
+    if (readOnly) return c.json({ error: 'action "deploy" is not allowed in read-only mode' }, 403);
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    try {
+      // createMarker validates the shape at runtime (throws on bad input).
+      const marker = createMarker(
+        body as unknown as Parameters<typeof createMarker>[0],
+        Date.now(),
+      );
+      await metricsStore.recordMarker(marker);
+      return c.json({ marker }, 201);
+    } catch (err) {
+      if (err instanceof InvalidMarkerError || err instanceof InvalidLabelError) {
+        return c.json({ error: err.message }, 400);
+      }
+      throw err;
+    }
+  });
+
+  hono.get("/api/deploys", async (c) => {
+    const now = Date.now();
+    const from = clampInt(c.req.query("from"), 0, 0, Number.MAX_SAFE_INTEGER);
+    const to = clampInt(c.req.query("to"), now, 0, Number.MAX_SAFE_INTEGER);
+    const queue = c.req.query("queue") || undefined;
+    return c.json({ markers: await metricsStore.queryMarkers({ from, to, queue }) });
   });
 
   // Prometheus scrape endpoint — the user's own Prometheus pulls from here.

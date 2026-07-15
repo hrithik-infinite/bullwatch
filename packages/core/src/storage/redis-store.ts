@@ -1,6 +1,12 @@
 import IORedis, { type ChainableCommander, type Redis, type RedisOptions } from "ioredis";
 import type { AggregateRecord, AggregateSeries, AggregateValue, MetricKind } from "./aggregate.js";
 import { BUCKET_COUNT } from "./histogram.js";
+import {
+  type DeployMarker,
+  type MarkerQuery,
+  assertMarkerPersistable,
+  markerMatchesQueue,
+} from "./markers.js";
 import { type MetricsQuery, type MetricsStore, assertPersistable } from "./metrics-store.js";
 
 export interface RedisMetricsStoreOptions {
@@ -95,6 +101,12 @@ export class RedisMetricsStore implements MetricsStore {
   private bucketKey(seriesId: string, ts: number): string {
     return `${this.kp}:b:${seriesId}:${ts}`;
   }
+  private markersKey(): string {
+    return `${this.kp}:markers`;
+  }
+  private markerKey(id: string): string {
+    return `${this.kp}:marker:${id}`;
+  }
 
   async write(records: ReadonlyArray<AggregateRecord>): Promise<void> {
     assertPersistable(records);
@@ -127,6 +139,39 @@ export class RedisMetricsStore implements MetricsStore {
       pipe.pexpire(bucket, ttl);
     }
     await pipe.exec();
+  }
+
+  async recordMarker(marker: DeployMarker): Promise<void> {
+    assertMarkerPersistable(marker);
+    const ttl = this.retentionMs;
+    const zset = this.markersKey();
+    const pipe = this.client.pipeline();
+    // id is a uuid → no encoding needed as a ZSET member or key suffix.
+    pipe.zadd(zset, marker.ts, marker.id);
+    pipe.zremrangebyscore(zset, 0, marker.ts - ttl);
+    pipe.pexpire(zset, ttl);
+    pipe.set(this.markerKey(marker.id), JSON.stringify(marker), "PX", ttl);
+    await pipe.exec();
+  }
+
+  async queryMarkers(q: MarkerQuery): Promise<ReadonlyArray<DeployMarker>> {
+    const ids = await this.client.zrangebyscore(this.markersKey(), q.from, `(${q.to}`);
+    if (ids.length === 0) return [];
+    const pipe = this.client.pipeline();
+    for (const id of ids) pipe.get(this.markerKey(id));
+    const results = await pipe.exec();
+    const out: DeployMarker[] = [];
+    for (const [err, raw] of results ?? []) {
+      if (err || raw === null || raw === undefined) continue; // expired blob, skip
+      try {
+        const marker = JSON.parse(raw as string) as DeployMarker;
+        if (markerMatchesQueue(marker, q.queue)) out.push(marker);
+      } catch {
+        // Corrupt blob — skip rather than throw.
+      }
+    }
+    out.sort((a, b) => a.ts - b.ts);
+    return out;
   }
 
   async query(q: MetricsQuery): Promise<ReadonlyArray<AggregateSeries>> {

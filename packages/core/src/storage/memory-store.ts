@@ -1,5 +1,11 @@
 import type { AggregateRecord, AggregateSeries } from "./aggregate.js";
 import { mergeValues } from "./histogram.js";
+import {
+  type DeployMarker,
+  type MarkerQuery,
+  assertMarkerPersistable,
+  markerMatchesQueue,
+} from "./markers.js";
 import { type MetricsQuery, type MetricsStore, assertPersistable } from "./metrics-store.js";
 
 // A null byte separates key parts and U+0001 stands in for a null label. Error
@@ -47,11 +53,14 @@ export class MemoryMetricsStore implements MetricsStore {
   readonly kind = "memory" as const;
   readonly retentionMs: number;
   private readonly maxSeries: number;
+  private readonly maxMarkers: number;
   private readonly series = new Map<string, Map<number, AggregateRecord>>();
+  private readonly markers = new Map<string, DeployMarker>();
 
-  constructor(opts: { retentionMs?: number; maxSeries?: number } = {}) {
+  constructor(opts: { retentionMs?: number; maxSeries?: number; maxMarkers?: number } = {}) {
     this.retentionMs = opts.retentionMs ?? 24 * 60 * 60 * 1000; // 24h
     this.maxSeries = opts.maxSeries ?? 2000;
+    this.maxMarkers = opts.maxMarkers ?? 1000;
   }
 
   async write(records: ReadonlyArray<AggregateRecord>): Promise<void> {
@@ -93,6 +102,34 @@ export class MemoryMetricsStore implements MetricsStore {
       }
     }
     return Promise.resolve(out);
+  }
+
+  async recordMarker(marker: DeployMarker): Promise<void> {
+    assertMarkerPersistable(marker);
+    this.markers.set(marker.id, marker);
+    this.evictMarkers();
+  }
+
+  queryMarkers(q: MarkerQuery): Promise<ReadonlyArray<DeployMarker>> {
+    const out = [...this.markers.values()]
+      .filter((m) => m.ts >= q.from && m.ts < q.to && markerMatchesQueue(m, q.queue))
+      .sort((a, b) => a.ts - b.ts);
+    return Promise.resolve(out);
+  }
+
+  private evictMarkers(): void {
+    // Drop markers older than retention relative to the newest marker.
+    let newest = 0;
+    for (const m of this.markers.values()) if (m.ts > newest) newest = m.ts;
+    const cutoff = newest - this.retentionMs;
+    for (const [id, m] of this.markers) if (m.ts < cutoff) this.markers.delete(id);
+    // Cap total count: evict oldest first.
+    if (this.markers.size > this.maxMarkers) {
+      const byAge = [...this.markers.entries()].sort((a, b) => a[1].ts - b[1].ts);
+      for (let i = 0; i < byAge.length && this.markers.size > this.maxMarkers; i++) {
+        this.markers.delete(byAge[i]?.[0] as string);
+      }
+    }
   }
 
   private evictExpired(): void {

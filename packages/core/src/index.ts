@@ -13,6 +13,17 @@ export {
   type MetricsStore,
 } from "./storage/metrics-store.js";
 export { assertLabel, InvalidLabelError, MAX_LABEL_LENGTH } from "./storage/labels.js";
+export {
+  type DeployMarker,
+  type MarkerInput,
+  type MarkerQuery,
+  InvalidMarkerError,
+  MAX_MARKER_METADATA_KEYS,
+  MAX_MARKER_METADATA_VALUE_LENGTH,
+  assertMarkerPersistable,
+  createMarker,
+  markerMatchesQueue,
+} from "./storage/markers.js";
 export { MemoryMetricsStore } from "./storage/memory-store.js";
 export { RedisMetricsStore, type RedisMetricsStoreOptions } from "./storage/redis-store.js";
 export {

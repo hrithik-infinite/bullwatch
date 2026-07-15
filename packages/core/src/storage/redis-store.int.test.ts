@@ -7,6 +7,7 @@ import {
 } from "../testing/redis-harness.js";
 import type { AggregateRecord } from "./aggregate.js";
 import { emptyHistogram, observe, percentile } from "./histogram.js";
+import { createMarker } from "./markers.js";
 import { RedisMetricsStore } from "./redis-store.js";
 
 function counter(
@@ -148,6 +149,41 @@ describe("RedisMetricsStore (integration, real Redis)", () => {
       to: 120_000,
     });
     expect(series[0]?.points.map((p) => p.ts)).toEqual([60_000]);
+  });
+
+  it("records and range-queries deploy markers, with queue scoping", async () => {
+    await store.recordMarker(createMarker({ ts: 1_000, label: "global deploy" }, 0));
+    await store.recordMarker(createMarker({ ts: 2_000, label: "email deploy", queue: "email" }, 0));
+    await store.recordMarker(
+      createMarker({ ts: 3_000, label: "billing deploy", queue: "billing" }, 0),
+    );
+
+    // No queue filter → all three, sorted ascending by ts.
+    const all = await store.queryMarkers({ from: 0, to: 10_000 });
+    expect(all.map((m) => m.label)).toEqual(["global deploy", "email deploy", "billing deploy"]);
+
+    // Queue filter → global markers plus that queue's.
+    const email = await store.queryMarkers({ from: 0, to: 10_000, queue: "email" });
+    expect(email.map((m) => m.label)).toEqual(["global deploy", "email deploy"]);
+
+    // Range excludes out-of-window markers (exclusive upper bound).
+    const windowed = await store.queryMarkers({ from: 1_500, to: 3_000 });
+    expect(windowed.map((m) => m.label)).toEqual(["email deploy"]);
+  });
+
+  it("expires markers past the retention window", async () => {
+    const shortLived = new RedisMetricsStore({
+      connection: ctx.connectionOptions,
+      keyPrefix: "bw-short-mk",
+      retentionMs: 150,
+    });
+    try {
+      await shortLived.recordMarker(createMarker({ ts: Date.now(), label: "ephemeral" }, 0));
+      await new Promise((r) => setTimeout(r, 300));
+      expect(await shortLived.queryMarkers({ from: 0, to: Date.now() + 10_000 })).toEqual([]);
+    } finally {
+      await shortLived.close();
+    }
   });
 
   it("expires buckets past the retention window", async () => {
