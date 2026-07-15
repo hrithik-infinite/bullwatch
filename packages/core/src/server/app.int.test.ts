@@ -192,6 +192,36 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(light.body.jobs[0].dataOmitted).toBe(true);
   });
 
+  it("redacts masked payload fields across list, detail, and search routes", async () => {
+    app = createBullwatch({
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+      discover: true,
+      metricsStore: store,
+      mask: ["ssn", "**.token"],
+    });
+    const job = await app.registry
+      .getQueue("email")
+      .add("welcome", { userId: 1, ssn: "111-22-3333", auth: { token: "sekret" } });
+
+    const list = await getJson(app, "/api/queues/email/jobs?state=waiting");
+    expect(list.body.jobs[0].data).toEqual({
+      userId: 1,
+      ssn: "[masked]",
+      auth: { token: "[masked]" },
+    });
+
+    const detail = await getJson(app, `/api/queues/email/jobs/${job.id}`);
+    expect(detail.body.data.ssn).toBe("[masked]");
+    expect(detail.body.data.auth.token).toBe("[masked]");
+
+    // The real value never appears in the serialized search response.
+    const search = await getJson(app, "/api/queues/email/search?q=welcome");
+    expect(JSON.stringify(search.body)).not.toContain("111-22-3333");
+    expect(JSON.stringify(search.body)).not.toContain("sekret");
+    expect(search.body.jobs[0].data.ssn).toBe("[masked]");
+  });
+
   it("lists job schedulers over HTTP", async () => {
     app = build();
     await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });

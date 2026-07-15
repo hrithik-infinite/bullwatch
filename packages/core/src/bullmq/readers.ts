@@ -1,4 +1,5 @@
 import type { JobType, Queue } from "bullmq";
+import type { MaskConfig } from "../domain/mask.js";
 import { type JobDTO, toJobDTO } from "./job-dto.js";
 
 export interface QueueSummary {
@@ -30,15 +31,22 @@ export async function listJobs(
   state: JobType,
   range: JobRange,
   now: number,
-  opts: { includeData?: boolean } = {},
+  opts: { includeData?: boolean; mask?: MaskConfig } = {},
 ): Promise<JobDTO[]> {
   const jobs = await queue.getJobs([state], range.start, range.end);
-  return jobs.map((job) => toJobDTO(job, queue.name, now, { includeData: opts.includeData }));
+  return jobs.map((job) =>
+    toJobDTO(job, queue.name, now, { includeData: opts.includeData, mask: opts.mask }),
+  );
 }
 
-export async function getJobDetail(queue: Queue, id: string, now: number): Promise<JobDTO | null> {
+export async function getJobDetail(
+  queue: Queue,
+  id: string,
+  now: number,
+  opts: { mask?: MaskConfig } = {},
+): Promise<JobDTO | null> {
   const job = await queue.getJob(id);
-  return job ? toJobDTO(job, queue.name, now) : null;
+  return job ? toJobDTO(job, queue.name, now, { mask: opts.mask }) : null;
 }
 
 export interface WorkerDTO {

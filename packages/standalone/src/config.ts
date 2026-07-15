@@ -9,6 +9,8 @@ export interface StandaloneConfig {
   readonly auth?: { username: string; password: string };
   readonly persistMetrics: boolean;
   readonly metricsConnection?: RedisOptions;
+  /** Dotted payload paths to redact before rendering (e.g. `user.ssn`). */
+  readonly mask: string[];
   readonly port: number;
 }
 
@@ -63,6 +65,11 @@ export function configFromEnv(env: NodeJS.ProcessEnv): StandaloneConfig {
 
   const persistMetrics = parseBool(env.BULLWATCH_PERSIST_METRICS, false);
 
+  const mask = (env.BULLWATCH_MASK ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   return {
     connection: connectionFromEnv(env, "REDIS_URL"),
     prefix: env.BULLWATCH_PREFIX ?? "bull",
@@ -74,6 +81,7 @@ export function configFromEnv(env: NodeJS.ProcessEnv): StandaloneConfig {
     metricsConnection: env.BULLWATCH_METRICS_REDIS
       ? parseRedisUrl(env.BULLWATCH_METRICS_REDIS)
       : undefined,
+    mask,
     port: Number(env.PORT ?? "3000"),
   };
 }

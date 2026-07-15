@@ -1,4 +1,5 @@
 import type { JobType, Queue } from "bullmq";
+import { type MaskConfig, applyMask } from "../domain/mask.js";
 import { matchesQuery, parseSearchQuery } from "../domain/search-query.js";
 import { type JobDTO, toJobDTO } from "./job-dto.js";
 
@@ -8,6 +9,12 @@ export interface SearchOptions {
   /** Max jobs fetched per state — the scan budget. */
   readonly perStateLimit: number;
   readonly now: number;
+  /**
+   * Redact matching payload fields. Applied to the data the predicate runs
+   * against, not just the returned DTO — so a masked field cannot be extracted
+   * by probing search (e.g. `password:a`, `password:ab`, …).
+   */
+  readonly mask?: MaskConfig;
 }
 
 export interface SearchResult {
@@ -37,8 +44,9 @@ export async function searchJobs(queue: Queue, opts: SearchOptions): Promise<Sea
     scanned += batch.length;
     if (batch.length >= opts.perStateLimit) truncated = true;
     for (const job of batch) {
-      if (matchesQuery({ id: job.id ?? null, name: job.name, data: job.data }, query)) {
-        jobs.push(toJobDTO(job, queue.name, opts.now));
+      const data = opts.mask ? applyMask(job.data, opts.mask) : job.data;
+      if (matchesQuery({ id: job.id ?? null, name: job.name, data }, query)) {
+        jobs.push(toJobDTO(job, queue.name, opts.now, { mask: opts.mask }));
       }
     }
   }

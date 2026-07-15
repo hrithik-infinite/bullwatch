@@ -13,13 +13,14 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 - **Live payload search** — read-through, budgeted, never indexed. The #1 unbuilt ask in the ecosystem.
 - **Real metrics** — throughput, failure rates, and wait/run **latency percentiles**, per queue and per job name. Live with zero config; opt in to Redis-backed rollups for long retention.
 - **Worker visibility, flows/DAG, DLQ analysis, replay** — the operational depth other OSS tools lack.
+- **Payload masking** — redact sensitive fields (`user.ssn`, `**.token`) at render, and honored in search so a masked field can't be probed out.
 - **Provably local** — zero external network calls, enforced in CI. Works air-gapped. Payloads never persisted, enforced structurally.
 
 ## Status
 
 Early development — backend core in progress, UI not started.
 
-Working today (test-driven, 107 tests). The P0 backend is complete; UI is next.
+Working today (test-driven, 126 tests). The P0 backend is complete; UI is next.
 
 - Queue registry with SCAN-based discovery; counts, listing (payload-light
   option), job detail, schedulers, workers, and parent-child flow trees.
@@ -30,6 +31,8 @@ Working today (test-driven, 107 tests). The P0 backend is complete; UI is next.
   (percentiles included). In-memory by default; opt-in Redis rollups for
   long retention.
 - Budgeted read-through payload search (never indexed; cost surfaced honestly).
+- Config-driven payload masking (dotted paths) — applied at render and before
+  search matching, so masked fields can't be extracted via search.
 - DLQ grouping by normalized error signature; Prometheus scrape endpoint.
 - Framework-agnostic HTTP `fetch` handler with **Express, Fastify, and Hono**
   adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.

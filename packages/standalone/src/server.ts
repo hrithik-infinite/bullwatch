@@ -20,6 +20,7 @@ export function buildApp(config: StandaloneConfig): BullwatchApp {
     discover: config.discover,
     readOnly: config.readOnly,
     auth: config.auth,
+    mask: config.mask,
     metricsStore,
   });
 }

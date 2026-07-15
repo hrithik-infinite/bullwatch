@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MASKED, compileMask } from "../domain/mask.js";
 import { type JobLike, toJobDTO } from "./job-dto.js";
 
 const completed: JobLike = {
@@ -65,5 +66,27 @@ describe("toJobDTO", () => {
     const dto = toJobDTO(completed, "email", 3_000);
     expect(dto.data).toEqual({ userId: 42 });
     expect(dto.dataOmitted).toBe(false);
+  });
+
+  it("redacts masked fields in data and returnvalue", () => {
+    const job: JobLike = {
+      ...completed,
+      data: { userId: 42, password: "hunter2" },
+      returnvalue: { token: "abc", ok: true },
+    };
+    const dto = toJobDTO(job, "email", 3_000, {
+      mask: compileMask(["password", "token"]),
+    });
+    expect(dto.data).toEqual({ userId: 42, password: MASKED });
+    expect(dto.returnvalue).toEqual({ token: MASKED, ok: true });
+  });
+
+  it("does not render a masked field even though it is withheld anyway", () => {
+    // includeData:false already nulls the payload — mask must not resurrect it.
+    const dto = toJobDTO(completed, "email", 3_000, {
+      includeData: false,
+      mask: compileMask(["userId"]),
+    });
+    expect(dto.data).toBeNull();
   });
 });

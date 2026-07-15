@@ -1,4 +1,5 @@
 import type { FlowProducer, JobNode } from "bullmq";
+import type { MaskConfig } from "../domain/mask.js";
 import { type JobDTO, toJobDTO } from "./job-dto.js";
 
 /** A parent-child job tree node for flow visualization. */
@@ -7,11 +8,16 @@ export interface FlowNodeDTO {
   readonly children: FlowNodeDTO[];
 }
 
-function mapNode(node: JobNode, fallbackQueue: string, now: number): FlowNodeDTO {
+function mapNode(
+  node: JobNode,
+  fallbackQueue: string,
+  now: number,
+  mask: MaskConfig | undefined,
+): FlowNodeDTO {
   const queue = node.job.queueName ?? fallbackQueue;
   return {
-    job: toJobDTO(node.job, queue, now),
-    children: (node.children ?? []).map((child) => mapNode(child, queue, now)),
+    job: toJobDTO(node.job, queue, now, { mask }),
+    children: (node.children ?? []).map((child) => mapNode(child, queue, now, mask)),
   };
 }
 
@@ -26,7 +32,7 @@ export async function getFlowTree(
   jobId: string,
   prefix: string,
   now: number,
-  opts: { depth?: number; maxChildren?: number } = {},
+  opts: { depth?: number; maxChildren?: number; mask?: MaskConfig } = {},
 ): Promise<FlowNodeDTO | null> {
   const node = await flow.getFlow({
     queueName,
@@ -36,5 +42,5 @@ export async function getFlowTree(
     maxChildren: opts.maxChildren ?? 50,
   });
   if (!node?.job) return null;
-  return mapNode(node, queueName, now);
+  return mapNode(node, queueName, now, opts.mask);
 }

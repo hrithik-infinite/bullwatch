@@ -25,6 +25,7 @@ import {
 } from "../bullmq/readers.js";
 import { QueueRegistry } from "../bullmq/registry.js";
 import { searchJobs } from "../bullmq/search.js";
+import { compileMask } from "../domain/mask.js";
 import type { MetricKind } from "../storage/aggregate.js";
 import { MemoryMetricsStore } from "../storage/memory-store.js";
 import type { MetricsStore } from "../storage/metrics-store.js";
@@ -41,6 +42,13 @@ export interface BullwatchOptions {
   readonly collectMetrics?: boolean;
   /** Optional HTTP Basic auth over every route (timing-safe compare). */
   readonly auth?: { readonly username: string; readonly password: string };
+  /**
+   * Redact matching payload fields before they leave the process. Dotted path
+   * patterns (`user.ssn`, `**.token`, `items.*.cardNumber`). Applied to every
+   * payload-bearing read — job detail, list, flow tree — and to the data search
+   * matches against, so masked fields can't be probed out via search.
+   */
+  readonly mask?: ReadonlyArray<string>;
 }
 
 export interface BullwatchApp {
@@ -84,6 +92,7 @@ function clampInt(value: string | undefined, fallback: number, min: number, max:
  */
 export function createBullwatch(options: BullwatchOptions): BullwatchApp {
   const readOnly = options.readOnly ?? false;
+  const mask = compileMask(options.mask ?? []);
   const metricsStore = options.metricsStore ?? new MemoryMetricsStore();
   const registry = new QueueRegistry({
     connection: options.connection,
@@ -129,7 +138,7 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     const start = clampInt(c.req.query("start"), 0, 0, Number.MAX_SAFE_INTEGER);
     const end = clampInt(c.req.query("end"), start + 19, start, start + 999);
     const includeData = c.req.query("includeData") !== "false";
-    const jobs = await listJobs(queue, state, { start, end }, Date.now(), { includeData });
+    const jobs = await listJobs(queue, state, { start, end }, Date.now(), { includeData, mask });
     return c.json({ jobs, state, start, end });
   });
 
@@ -150,7 +159,7 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
       ? (statesParam.split(",").filter(Boolean) as JobType[])
       : DEFAULT_SEARCH_STATES;
     const perStateLimit = clampInt(c.req.query("limit"), 100, 1, 1000);
-    const result = await searchJobs(queue, { query, states, perStateLimit, now: Date.now() });
+    const result = await searchJobs(queue, { query, states, perStateLimit, now: Date.now(), mask });
     return c.json(result);
   });
 
@@ -186,6 +195,7 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
       c.req.param("id"),
       options.prefix ?? "bull",
       Date.now(),
+      { mask },
     );
     return tree ? c.json(tree) : c.json({ error: "flow not found" }, 404);
   });
@@ -193,7 +203,7 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
   hono.get("/api/queues/:name/jobs/:id", async (c) => {
     const queue = await resolve(c.req.param("name"));
     if (!queue) return c.json({ error: "queue not found" }, 404);
-    const job = await getJobDetail(queue, c.req.param("id"), Date.now());
+    const job = await getJobDetail(queue, c.req.param("id"), Date.now(), { mask });
     return job ? c.json(job) : c.json({ error: "job not found" }, 404);
   });
 

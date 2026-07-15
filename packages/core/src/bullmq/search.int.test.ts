@@ -1,4 +1,5 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { MASKED, compileMask } from "../domain/mask.js";
 import {
   type RedisTestContext,
   createRedisContext,
@@ -62,6 +63,46 @@ describe("searchJobs (integration, real Redis)", () => {
     });
     expect(result.jobs).toHaveLength(1);
     expect(result.jobs[0]?.name).toBe("welcome");
+  });
+
+  it("redacts masked fields in returned results", async () => {
+    const q = registry.getQueue("email");
+    await q.add("welcome", { userId: 1, ssn: "111-22-3333" });
+    const result = await searchJobs(q, {
+      query: "welcome",
+      states: ["waiting"],
+      perStateLimit: 100,
+      now: Date.now(),
+      mask: compileMask(["ssn"]),
+    });
+    expect(result.jobs).toHaveLength(1);
+    expect(result.jobs[0]?.data).toEqual({ userId: 1, ssn: MASKED });
+  });
+
+  it("cannot be used as an oracle to probe a masked field", async () => {
+    // Masking runs before the predicate, so a search on the real value misses.
+    const q = registry.getQueue("email");
+    await q.add("welcome", { userId: 1, ssn: "111-22-3333" });
+    const mask = compileMask(["ssn"]);
+
+    const byRealValue = await searchJobs(q, {
+      query: "ssn:111-22-3333",
+      states: ["waiting"],
+      perStateLimit: 100,
+      now: Date.now(),
+      mask,
+    });
+    expect(byRealValue.jobs).toHaveLength(0);
+
+    // Only the sentinel matches — no information about the underlying value.
+    const bySentinel = await searchJobs(q, {
+      query: `ssn:${MASKED}`,
+      states: ["waiting"],
+      perStateLimit: 100,
+      now: Date.now(),
+      mask,
+    });
+    expect(bySentinel.jobs).toHaveLength(1);
   });
 
   it("reports truncation honestly when a state hits the scan budget", async () => {

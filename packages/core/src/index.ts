@@ -36,6 +36,7 @@ export {
   parseSearchQuery,
 } from "./domain/search-query.js";
 export { metaScanPattern, queueNameFromMetaKey } from "./domain/discovery.js";
+export { MASKED, type MaskConfig, applyMask, compileMask } from "./domain/mask.js";
 export { type MetricEvent, type QueueEventKind, eventToAggregates } from "./domain/events.js";
 
 // --- BullMQ readers / actions / search ---

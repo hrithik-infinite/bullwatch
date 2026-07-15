@@ -29,6 +29,12 @@ describe("configFromEnv", () => {
     expect(cfg.readOnly).toBe(false);
     expect(cfg.persistMetrics).toBe(false);
     expect(cfg.auth).toBeUndefined();
+    expect(cfg.mask).toEqual([]);
+  });
+
+  it("parses a comma-separated mask list", () => {
+    const cfg = configFromEnv({ BULLWATCH_MASK: "password, user.ssn ,**.token," });
+    expect(cfg.mask).toEqual(["password", "user.ssn", "**.token"]);
   });
 
   it("uses an explicit queue list and disables discovery by default", () => {

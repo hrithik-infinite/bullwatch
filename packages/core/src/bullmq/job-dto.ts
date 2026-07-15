@@ -1,4 +1,5 @@
 import { errorSignature } from "../domain/error-signature.js";
+import { type MaskConfig, applyMask } from "../domain/mask.js";
 import { type JobTimings, deriveTimings } from "../domain/timings.js";
 
 /**
@@ -51,6 +52,12 @@ export interface ToJobDTOOptions {
    * payload is still read live from Redis, never persisted either way.
    */
   readonly includeData?: boolean;
+  /**
+   * Redact matching payload fields in `data`/`returnvalue` before they leave
+   * the process. Applied only when `includeData` is true (there is nothing to
+   * mask otherwise). See {@link MaskConfig}.
+   */
+  readonly mask?: MaskConfig;
 }
 
 /**
@@ -64,6 +71,8 @@ export function toJobDTO(
   opts: ToJobDTOOptions = {},
 ): JobDTO {
   const includeData = opts.includeData ?? true;
+  const mask = opts.mask;
+  const redact = (value: unknown) => (mask ? applyMask(value, mask) : value);
   const failedReason = job.failedReason ?? null;
   return {
     id: job.id ?? null,
@@ -79,9 +88,9 @@ export function toJobDTO(
       finishedOn: job.finishedOn,
       now,
     }),
-    data: includeData ? job.data : null,
+    data: includeData ? redact(job.data) : null,
     opts: job.opts,
-    returnvalue: includeData ? (job.returnvalue ?? null) : null,
+    returnvalue: includeData ? redact(job.returnvalue ?? null) : null,
     failedReason,
     stacktrace: job.stacktrace ?? [],
     progress: job.progress ?? null,

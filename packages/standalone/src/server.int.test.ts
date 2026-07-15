@@ -18,6 +18,7 @@ describe("standalone server (integration)", () => {
     discover: true,
     readOnly: false,
     persistMetrics: false,
+    mask: [],
     port: 0,
   });
   const server = createNodeServer(app);
