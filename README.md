@@ -20,7 +20,7 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 
 Early development — backend core in progress, UI not started.
 
-Working today (test-driven, 126 tests). The P0 backend is complete; UI is next.
+Working today (test-driven, 188 tests). The P0 **and P1** backends are complete; UI is next.
 
 - Queue registry with SCAN-based discovery; counts, listing (payload-light
   option), job detail, schedulers, workers, and parent-child flow trees.
@@ -33,7 +33,12 @@ Working today (test-driven, 126 tests). The P0 backend is complete; UI is next.
 - Budgeted read-through payload search (never indexed; cost surfaced honestly).
 - Config-driven payload masking (dotted paths) — applied at render and before
   search matching, so masked fields can't be extracted via search.
-- DLQ grouping by normalized error signature; Prometheus scrape endpoint.
+- DLQ failure analysis: top error signatures ranked, with per-window trends and
+  representative failed-job samples; Prometheus scrape endpoint.
+- Replay a failed job with an edited payload (original kept for audit).
+- Deploy markers to overlay on charts, and threshold alerts (failure rate,
+  queue depth, latency) delivered to your own webhooks — Slack, Discord,
+  PagerDuty — with nothing routed through a third party.
 - Framework-agnostic HTTP `fetch` handler with **Express, Fastify, and Hono**
   adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.
 
