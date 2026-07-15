@@ -37,6 +37,13 @@ export {
 } from "./domain/search-query.js";
 export { metaScanPattern, queueNameFromMetaKey } from "./domain/discovery.js";
 export { MASKED, type MaskConfig, applyMask, compileMask } from "./domain/mask.js";
+export {
+  type FailureSignatureSummary,
+  type FailureSummary,
+  type FailureTrendWindow,
+  type SummarizeFailuresOptions,
+  summarizeFailures,
+} from "./domain/failure-summary.js";
 export { type MetricEvent, type QueueEventKind, eventToAggregates } from "./domain/events.js";
 
 // --- BullMQ readers / actions / search ---
@@ -70,6 +77,11 @@ export {
   retryJob,
 } from "./bullmq/actions.js";
 export { type SearchOptions, type SearchResult, searchJobs } from "./bullmq/search.js";
+export {
+  type FailureSampleOptions,
+  type FailureSampleResult,
+  sampleFailedJobsBySignature,
+} from "./bullmq/failure-samples.js";
 export { MetricsCollector, type MetricsCollectorOptions } from "./bullmq/metrics-collector.js";
 
 // --- server ---

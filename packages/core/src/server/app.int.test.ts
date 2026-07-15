@@ -222,6 +222,53 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     expect(search.body.jobs[0].data.ssn).toBe("[masked]");
   });
 
+  it("summarizes DLQ failures by signature with samples over HTTP", async () => {
+    const { Worker } = await import("bullmq");
+    app = createBullwatch({
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+      queues: ["email"],
+      metricsStore: store,
+    });
+    await app.startMetrics();
+
+    // A worker that always fails with a timing-varying (so normalized) message.
+    const worker = new Worker(
+      "email",
+      async (job) => {
+        throw new Error(`Timeout of ${job.data.ms}ms exceeded`);
+      },
+      { connection: ctx.connectionOptions, prefix: "bull" },
+    );
+    await worker.waitUntilReady();
+    try {
+      const now = Date.now();
+      await app.registry.getQueue("email").add("welcome", { ms: 5000 });
+      await app.registry.getQueue("email").add("welcome", { ms: 3000 });
+
+      let body: JsonBody;
+      const start = Date.now();
+      while (Date.now() - start < 10_000) {
+        const res = await getJson(
+          app,
+          `/api/queues/email/failures?from=${now - 60_000}&to=${now + 120_000}&samples=true`,
+        );
+        body = res.body;
+        if (body.totalFailures >= 2) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(body.totalFailures).toBeGreaterThanOrEqual(2);
+      // Both failures normalize to one signature.
+      expect(body.signatures).toHaveLength(1);
+      expect(body.signatures[0].errorSignature).toBe("Timeout of <n>ms exceeded");
+      expect(body.signatures[0].count).toBeGreaterThanOrEqual(2);
+      expect(body.signatures[0].sampleJobIds.length).toBeGreaterThanOrEqual(1);
+      expect(JSON.stringify(body)).not.toContain("5000ms"); // raw reason never surfaced
+    } finally {
+      await worker.close();
+    }
+  });
+
   it("lists job schedulers over HTTP", async () => {
     app = build();
     await app.registry.getQueue("email").upsertJobScheduler("digest", { every: 60_000 });

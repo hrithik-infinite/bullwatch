@@ -14,6 +14,7 @@ import {
   resumeQueue,
   retryJob,
 } from "../bullmq/actions.js";
+import { sampleFailedJobsBySignature } from "../bullmq/failure-samples.js";
 import { getFlowTree } from "../bullmq/flows.js";
 import { MetricsCollector } from "../bullmq/metrics-collector.js";
 import {
@@ -25,6 +26,7 @@ import {
 } from "../bullmq/readers.js";
 import { QueueRegistry } from "../bullmq/registry.js";
 import { searchJobs } from "../bullmq/search.js";
+import { summarizeFailures } from "../domain/failure-summary.js";
 import { compileMask } from "../domain/mask.js";
 import type { MetricKind } from "../storage/aggregate.js";
 import { MemoryMetricsStore } from "../storage/memory-store.js";
@@ -178,6 +180,52 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
       to: clampInt(c.req.query("to"), now, 0, Number.MAX_SAFE_INTEGER),
     });
     return c.json({ series });
+  });
+
+  // DLQ / failure analysis: top error signatures over a window with per-bucket
+  // trends. Reads the store's existing signature-keyed "failed" series — no new
+  // storage. `samples=true` attaches representative failed job ids (read live).
+  hono.get("/api/queues/:name/failures", async (c) => {
+    const queue = await resolve(c.req.param("name"));
+    if (!queue) return c.json({ error: "queue not found" }, 404);
+    const now = Date.now();
+    const from = clampInt(
+      c.req.query("from"),
+      now - 24 * 60 * 60 * 1000,
+      0,
+      Number.MAX_SAFE_INTEGER,
+    );
+    const to = clampInt(c.req.query("to"), now, 0, Number.MAX_SAFE_INTEGER);
+    const topN = clampInt(c.req.query("topN"), 10, 1, 100);
+    const trendBuckets = clampInt(c.req.query("trendBuckets"), 24, 1, 200);
+    const series = await metricsStore.query({
+      queue: queue.name,
+      jobName: null,
+      metric: "failed",
+      from,
+      to,
+    });
+    const summary = summarizeFailures(series, { from, to, topN, trendBuckets });
+
+    if (c.req.query("samples") === "true") {
+      const sampleSize = clampInt(c.req.query("sampleSize"), 5, 1, 50);
+      const scanLimit = clampInt(c.req.query("scanLimit"), 200, 1, 1000);
+      const { samples, scanned, truncated } = await sampleFailedJobsBySignature(queue, {
+        signatures: summary.signatures.map((s) => s.errorSignature),
+        perSignature: sampleSize,
+        scanLimit,
+      });
+      return c.json({
+        ...summary,
+        signatures: summary.signatures.map((s) => ({
+          ...s,
+          sampleJobIds: samples[s.errorSignature] ?? [],
+        })),
+        samplesScanned: scanned,
+        samplesTruncated: truncated,
+      });
+    }
+    return c.json(summary);
   });
 
   hono.get("/api/queues/:name/workers", async (c) => {
