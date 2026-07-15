@@ -19,16 +19,20 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 
 Early development — backend core in progress, UI not started.
 
-Working today (`@bullwatch/core`, test-driven, 66 tests):
+Working today (test-driven, 107 tests). The P0 backend is complete; UI is next.
 
-- Queue registry with SCAN-based discovery; job counts, listing, and detail.
-- Job actions (retry / promote / remove / clean) with a read-only guard.
+- Queue registry with SCAN-based discovery; counts, listing (payload-light
+  option), job detail, schedulers, workers, and parent-child flow trees.
+- Job actions — retry / promote / remove / clean, pause / resume, and bulk
+  retry / remove — all behind a read-only guard, plus optional HTTP Basic auth.
 - Live metrics pipeline: tails `QueueEvents`, derives wait/run latency, and
-  aggregates counters + latency histograms per queue and per job name into a
-  bounded in-memory store (percentiles included).
+  aggregates counters + latency histograms per queue and per job name
+  (percentiles included). In-memory by default; opt-in Redis rollups for
+  long retention.
 - Budgeted read-through payload search (never indexed; cost surfaced honestly).
-- DLQ grouping by normalized error signature.
-- HTTP API (framework-agnostic `fetch` handler) + one-line Express adapter.
+- DLQ grouping by normalized error signature; Prometheus scrape endpoint.
+- Framework-agnostic HTTP `fetch` handler with **Express, Fastify, and Hono**
+  adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.
 
 ## Development
 
