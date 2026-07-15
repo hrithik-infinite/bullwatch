@@ -1,12 +1,15 @@
 import type { ConnectionOptions, JobType, Queue } from "bullmq";
 import { type Context, Hono } from "hono";
 import { JobNotFoundError, ReadOnlyError, removeJob, retryJob } from "../bullmq/actions.js";
-import { getJobDetail, getQueueSummary, listJobs } from "../bullmq/readers.js";
+import { getFlowTree } from "../bullmq/flows.js";
+import { MetricsCollector } from "../bullmq/metrics-collector.js";
+import { getJobDetail, getQueueSummary, getWorkers, listJobs } from "../bullmq/readers.js";
 import { QueueRegistry } from "../bullmq/registry.js";
 import { searchJobs } from "../bullmq/search.js";
 import type { MetricKind } from "../storage/aggregate.js";
 import { MemoryMetricsStore } from "../storage/memory-store.js";
 import type { MetricsStore } from "../storage/metrics-store.js";
+import { renderPrometheus } from "./prometheus.js";
 
 export interface BullwatchOptions {
   readonly connection: ConnectionOptions;
@@ -15,6 +18,8 @@ export interface BullwatchOptions {
   readonly discover?: boolean;
   readonly readOnly?: boolean;
   readonly metricsStore?: MetricsStore;
+  /** Start a metrics collector per queue on startup. Default false. */
+  readonly collectMetrics?: boolean;
 }
 
 export interface BullwatchApp {
@@ -22,6 +27,8 @@ export interface BullwatchApp {
   readonly registry: QueueRegistry;
   readonly metricsStore: MetricsStore;
   readonly readOnly: boolean;
+  /** Start (idempotently) a metrics collector for every known queue. */
+  startMetrics(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -121,11 +128,39 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     return c.json({ series });
   });
 
+  hono.get("/api/queues/:name/workers", async (c) => {
+    const queue = await resolve(c.req.param("name"));
+    if (!queue) return c.json({ error: "queue not found" }, 404);
+    return c.json({ workers: await getWorkers(queue) });
+  });
+
+  hono.get("/api/queues/:name/flows/:id", async (c) => {
+    const queue = await resolve(c.req.param("name"));
+    if (!queue) return c.json({ error: "queue not found" }, 404);
+    const tree = await getFlowTree(
+      registry.getFlowProducer(),
+      queue.name,
+      c.req.param("id"),
+      options.prefix ?? "bull",
+      Date.now(),
+    );
+    return tree ? c.json(tree) : c.json({ error: "flow not found" }, 404);
+  });
+
   hono.get("/api/queues/:name/jobs/:id", async (c) => {
     const queue = await resolve(c.req.param("name"));
     if (!queue) return c.json({ error: "queue not found" }, 404);
     const job = await getJobDetail(queue, c.req.param("id"), Date.now());
     return job ? c.json(job) : c.json({ error: "job not found" }, 404);
+  });
+
+  // Prometheus scrape endpoint — the user's own Prometheus pulls from here.
+  hono.get("/metrics", async (c) => {
+    const names = await registry.listQueueNames();
+    const summaries = await Promise.all(names.map((n) => getQueueSummary(registry.getQueue(n))));
+    return c.text(renderPrometheus(summaries), 200, {
+      "content-type": "text/plain; version=0.0.4",
+    });
   });
 
   const mutate = async (c: Context, action: (queue: Queue, id: string) => Promise<void>) => {
@@ -150,11 +185,38 @@ export function createBullwatch(options: BullwatchOptions): BullwatchApp {
     mutate(c, (queue, id) => removeJob(queue, id, { readOnly })),
   );
 
+  const collectors = new Map<string, MetricsCollector>();
+  const startMetrics = async (): Promise<void> => {
+    const names = new Set<string>(options.queues ?? []);
+    for (const name of await registry.listQueueNames()) names.add(name);
+    await Promise.all(
+      [...names]
+        .filter((name) => !collectors.has(name))
+        .map(async (name) => {
+          const collector = new MetricsCollector({
+            queueName: name,
+            connection: options.connection,
+            prefix: options.prefix,
+            store: metricsStore,
+          });
+          await collector.start();
+          collectors.set(name, collector);
+        }),
+    );
+  };
+
+  if (options.collectMetrics) void startMetrics();
+
   return {
     fetch: (request: Request) => hono.fetch(request),
     registry,
     metricsStore,
     readOnly,
-    close: () => registry.close(),
+    startMetrics,
+    close: async () => {
+      await Promise.all([...collectors.values()].map((collector) => collector.close()));
+      collectors.clear();
+      await registry.close();
+    },
   };
 }

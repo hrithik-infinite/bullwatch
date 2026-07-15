@@ -14,6 +14,7 @@ export {
 } from "./storage/metrics-store.js";
 export { assertLabel, InvalidLabelError, MAX_LABEL_LENGTH } from "./storage/labels.js";
 export { MemoryMetricsStore } from "./storage/memory-store.js";
+export { RedisMetricsStore, type RedisMetricsStoreOptions } from "./storage/redis-store.js";
 export {
   BUCKET_COUNT,
   LATENCY_BOUNDS_MS,
@@ -40,11 +41,14 @@ export { type MetricEvent, type QueueEventKind, eventToAggregates } from "./doma
 // --- BullMQ readers / actions / search ---
 export { QueueRegistry, type QueueRegistryOptions } from "./bullmq/registry.js";
 export { type JobDTO, type JobLike, toJobDTO } from "./bullmq/job-dto.js";
+export { type FlowNodeDTO, getFlowTree } from "./bullmq/flows.js";
 export {
   type JobRange,
   type QueueSummary,
+  type WorkerDTO,
   getJobDetail,
   getQueueSummary,
+  getWorkers,
   listJobs,
 } from "./bullmq/readers.js";
 export {
@@ -61,3 +65,4 @@ export { MetricsCollector, type MetricsCollectorOptions } from "./bullmq/metrics
 
 // --- server ---
 export { type BullwatchApp, type BullwatchOptions, createBullwatch } from "./server/app.js";
+export { renderPrometheus } from "./server/prometheus.js";

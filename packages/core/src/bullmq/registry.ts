@@ -1,4 +1,4 @@
-import { type ConnectionOptions, Queue } from "bullmq";
+import { type ConnectionOptions, FlowProducer, Queue } from "bullmq";
 import IORedis, { type Redis, type RedisOptions } from "ioredis";
 import { metaScanPattern, queueNameFromMetaKey } from "../domain/discovery.js";
 
@@ -27,6 +27,7 @@ export class QueueRegistry {
   private readonly discover: boolean;
   private readonly connection: ConnectionOptions;
   private readonly queues = new Map<string, Queue>();
+  private flowProducer: FlowProducer | null = null;
   private adminClient: Redis | null = null;
   private readonly ownsAdminClient: boolean;
 
@@ -52,6 +53,13 @@ export class QueueRegistry {
       this.queues.set(name, queue);
     }
     return queue;
+  }
+
+  getFlowProducer(): FlowProducer {
+    if (!this.flowProducer) {
+      this.flowProducer = new FlowProducer({ connection: this.connection, prefix: this.prefix });
+    }
+    return this.flowProducer;
   }
 
   private admin(): Redis {
@@ -102,6 +110,10 @@ export class QueueRegistry {
   async close(): Promise<void> {
     await Promise.all([...this.queues.values()].map((q) => q.close()));
     this.queues.clear();
+    if (this.flowProducer) {
+      await this.flowProducer.close();
+      this.flowProducer = null;
+    }
     if (this.ownsAdminClient && this.adminClient) {
       await this.adminClient.quit().catch(() => this.adminClient?.disconnect());
       this.adminClient = null;

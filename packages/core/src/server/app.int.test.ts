@@ -129,4 +129,58 @@ describe("bullwatch HTTP app (integration, real Redis)", () => {
     const { status } = await getJson(app, "/api/queues/ghost");
     expect(status).toBe(404);
   });
+
+  it("exposes a Prometheus scrape endpoint", async () => {
+    app = build();
+    await app.registry.getQueue("email").add("welcome", {});
+    await app.registry.getQueue("email").add("welcome", {});
+    const res = await app.fetch(new Request(`${ORIGIN}/metrics`));
+    expect(res.headers.get("content-type")).toContain("text/plain");
+    const text = await res.text();
+    expect(text).toContain('bullwatch_job_count{queue="email",state="waiting"} 2');
+  });
+
+  it("collects metrics end-to-end when started", async () => {
+    const { Worker } = await import("bullmq");
+    app = createBullwatch({
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+      queues: ["email"],
+      readOnly: false,
+      metricsStore: store,
+    });
+    await app.startMetrics();
+
+    const worker = new Worker("email", async () => ({ ok: true }), {
+      connection: ctx.connectionOptions,
+      prefix: "bull",
+    });
+    await worker.waitUntilReady();
+    try {
+      await app.registry.getQueue("email").add("welcome", { userId: 1 });
+      await app.registry.getQueue("email").add("welcome", { userId: 2 });
+
+      let completed = 0;
+      const start = Date.now();
+      while (Date.now() - start < 10_000 && completed < 2) {
+        const series = await store.query({
+          queue: "email",
+          jobName: null,
+          metric: "completed",
+          from: 0,
+          to: Date.now() + 120_000,
+        });
+        completed = series.reduce(
+          (sum, s) =>
+            sum +
+            s.points.reduce((a, p) => a + (p.value.kind === "counter" ? p.value.count : 0), 0),
+          0,
+        );
+        if (completed < 2) await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(completed).toBeGreaterThanOrEqual(2);
+    } finally {
+      await worker.close();
+    }
+  });
 });
