@@ -6,6 +6,8 @@ export interface MetricsQuery {
   readonly queue?: string;
   /** null = queue-level only; a string = that job name; undefined = any. */
   readonly jobName?: string | null;
+  /** null = signature-less only; a string = that signature; undefined = any. */
+  readonly errorSignature?: string | null;
   readonly metric: MetricKind;
   /** Inclusive lower bound, Unix ms. */
   readonly from: number;

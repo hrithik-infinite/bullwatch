@@ -13,7 +13,7 @@ export type { BullwatchOptions } from "@bullwatch/core";
  * a web-standard Request, hands it to the one framework-agnostic fetch handler
  * in @bullwatch/core, and streams the Response back.
  */
-export function bullwatchExpress(options: BullwatchOptions = {}) {
+export function bullwatchExpress(options: BullwatchOptions) {
   const app: BullwatchApp = createBullwatch(options);
 
   return async (req: ExpressRequest, res: ExpressResponse, next: NextFunction): Promise<void> => {

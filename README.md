@@ -17,7 +17,27 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 
 ## Status
 
-Early development. Architecture and product plan are being finalized.
+Early development — backend core in progress, UI not started.
+
+Working today (`@bullwatch/core`, test-driven, 66 tests):
+
+- Queue registry with SCAN-based discovery; job counts, listing, and detail.
+- Job actions (retry / promote / remove / clean) with a read-only guard.
+- Live metrics pipeline: tails `QueueEvents`, derives wait/run latency, and
+  aggregates counters + latency histograms per queue and per job name into a
+  bounded in-memory store (percentiles included).
+- Budgeted read-through payload search (never indexed; cost surfaced honestly).
+- DLQ grouping by normalized error signature.
+- HTTP API (framework-agnostic `fetch` handler) + one-line Express adapter.
+
+## Development
+
+```sh
+pnpm install
+pnpm test        # unit + integration; integration uses redis-memory-server,
+                 # or set REDIS_URL to point at your own Redis
+pnpm build && pnpm typecheck && pnpm lint && pnpm check:no-network
+```
 
 ## License
 

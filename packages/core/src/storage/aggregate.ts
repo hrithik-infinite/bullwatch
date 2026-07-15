@@ -61,6 +61,7 @@ export interface AggregateRecord {
 export interface AggregateSeries {
   readonly queue: string;
   readonly jobName: string | null;
+  readonly errorSignature: string | null;
   readonly metric: MetricKind;
   readonly points: ReadonlyArray<{ readonly ts: number; readonly value: AggregateValue }>;
 }

@@ -62,6 +62,40 @@ describe("MemoryMetricsStore", () => {
     expect(series[0]?.points.map((p) => p.ts)).toEqual([120_000]);
   });
 
+  it("keeps signature-less and per-signature failures in separate series", async () => {
+    const store = new MemoryMetricsStore();
+    const failed = (errorSignature: string | null): AggregateRecord => ({
+      ts: 60_000,
+      bucketSeconds: 60,
+      queue: "email",
+      jobName: null,
+      errorSignature,
+      metric: "failed",
+      value: { kind: "counter", count: 1 },
+    });
+    await store.write([failed(null), failed("Timeout of <n>ms exceeded"), failed(null)]);
+
+    // Plain failure-rate counter: not polluted by the signatured one.
+    const plain = await store.query({
+      queue: "email",
+      metric: "failed",
+      errorSignature: null,
+      from: 0,
+      to: 120_000,
+    });
+    expect(plain[0]?.points[0]?.value).toEqual({ kind: "counter", count: 2 });
+
+    // The signatured series is retrievable on its own for DLQ grouping.
+    const grouped = await store.query({
+      queue: "email",
+      metric: "failed",
+      errorSignature: "Timeout of <n>ms exceeded",
+      from: 0,
+      to: 120_000,
+    });
+    expect(grouped[0]?.points[0]?.value).toEqual({ kind: "counter", count: 1 });
+  });
+
   it("rejects a label long enough to be a leaked payload", async () => {
     const store = new MemoryMetricsStore();
     const record = counter({

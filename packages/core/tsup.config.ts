@@ -6,6 +6,6 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  // bullmq is a peer dependency; never bundle it.
-  external: ["bullmq"],
+  // bullmq and ioredis are peer dependencies; never bundle them.
+  external: ["bullmq", "ioredis"],
 });
