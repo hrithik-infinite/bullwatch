@@ -49,6 +49,50 @@ function Toast() {
 }
 import { AppProvider } from "./state.js";
 
+const DEMO = import.meta.env.VITE_DEMO === "1" || import.meta.env.VITE_DEMO === "true";
+
+function DemoRibbon() {
+  if (!DEMO) return null;
+  return (
+    <div
+      style={{
+        flex: "none",
+        display: "flex",
+        alignItems: "center",
+        gap: 10,
+        padding: "7px 16px",
+        fontSize: 11.5,
+        color: "var(--text-1)",
+        background: "color-mix(in oklab, var(--accent) 12%, var(--bg-2))",
+        borderBottom: "1px solid var(--accent-line)",
+      }}
+    >
+      <span
+        style={{
+          width: 6,
+          height: 6,
+          borderRadius: "50%",
+          background: "var(--accent)",
+          animation: "bw-pulse 1.6s ease-in-out infinite",
+        }}
+      />
+      <span>
+        <strong style={{ fontWeight: 640, color: "var(--text-0)" }}>Live demo</strong> — all data is
+        simulated in your browser. No server, no Redis. Every action (retry, replay, pause) works.
+      </span>
+      <span style={{ flex: 1 }} />
+      <a
+        href="https://github.com/hrithik-infinite/bullwatch"
+        target="_blank"
+        rel="noreferrer"
+        style={{ color: "var(--accent)", fontWeight: 560, textDecoration: "none" }}
+      >
+        GitHub ↗
+      </a>
+    </div>
+  );
+}
+
 const CRUMB: Record<string, string> = {
   overview: "Overview",
   queue: "Overview",
@@ -115,6 +159,7 @@ function Shell() {
       <main
         style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: 0 }}
       >
+        <DemoRibbon />
         <Header
           crumbRoot={CRUMB[route.name] ?? "bullwatch"}
           crumbLeaf={crumbLeaf}
