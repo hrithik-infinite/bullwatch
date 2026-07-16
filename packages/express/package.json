@@ -1,8 +1,19 @@
 {
   "name": "@bullwatch/express",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Express adapter for bullwatch — mount the dashboard in one line.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrithik-infinite/bullwatch.git",
+    "directory": "packages/express"
+  },
+  "homepage": "https://hrithik-infinite.github.io/bullwatch/",
+  "bugs": "https://github.com/hrithik-infinite/bullwatch/issues",
+  "keywords": ["bullmq", "express", "dashboard", "queue", "monitoring"],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {

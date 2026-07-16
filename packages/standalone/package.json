@@ -1,8 +1,16 @@
 {
   "name": "bullwatch",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Standalone bullwatch server — a deep, local-first BullMQ dashboard. Run with npx bullwatch or Docker.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrithik-infinite/bullwatch.git",
+    "directory": "packages/standalone"
+  },
+  "homepage": "https://hrithik-infinite.github.io/bullwatch/",
+  "bugs": "https://github.com/hrithik-infinite/bullwatch/issues",
+  "keywords": ["bullmq", "redis", "queue", "dashboard", "monitoring", "observability", "cli"],
   "type": "module",
   "bin": {
     "bullwatch": "./dist/cli.js"

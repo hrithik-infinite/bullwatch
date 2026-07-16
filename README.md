@@ -18,9 +18,9 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 
 ## Status
 
-Early development — backend core in progress, UI not started.
+**Beta.** The P0 + P1 backends **and the full web UI** are complete and test-driven (190 tests, real-Redis integration). Published to npm under the `beta` tag while the API settles.
 
-Working today (test-driven, 188 tests). The P0 **and P1** backends are complete; UI is next.
+**[▶ Try the live demo](https://hrithik-infinite.github.io/bullwatch/)** — the entire dashboard running in your browser on simulated data, no install required.
 
 - Queue registry with SCAN-based discovery; counts, listing (payload-light
   option), job detail, schedulers, workers, and parent-child flow trees.
@@ -41,6 +41,54 @@ Working today (test-driven, 188 tests). The P0 **and P1** backends are complete;
   PagerDuty — with nothing routed through a third party.
 - Framework-agnostic HTTP `fetch` handler with **Express, Fastify, and Hono**
   adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.
+
+## Quick start
+
+> Beta packages are published under the `beta` dist-tag — use `@beta` when installing.
+
+### Standalone — no code
+
+```sh
+REDIS_URL=redis://localhost:6379 npx bullwatch@beta
+# dashboard on http://localhost:3000
+```
+
+Configure via env: `BULLWATCH_QUEUES`, `BULLWATCH_READONLY`, `BULLWATCH_MASK`
+(comma-separated dotted paths to redact), `BULLWATCH_ALERTS` (JSON rules),
+`BULLWATCH_AUTH_USERNAME`/`PASSWORD`. Or build the Docker image from
+`packages/standalone/Dockerfile`.
+
+### Embed in your app
+
+Mount the dashboard on any route of an existing server:
+
+```ts
+// Express
+import express from "express";
+import { bullwatchExpress } from "@bullwatch/express";
+
+const app = express();
+app.use("/admin/queues", bullwatchExpress({
+  connection: { host: "localhost", port: 6379 },
+  // queues: ["email", "payments"],  // or omit to auto-discover
+  // readOnly: true, mask: ["**.token", "user.ssn"],
+}));
+```
+
+```ts
+// Fastify
+import { bullwatchFastify } from "@bullwatch/fastify";
+app.register(bullwatchFastify({ connection }), { prefix: "/admin/queues" });
+```
+
+```ts
+// Hono
+import { bullwatchHono } from "@bullwatch/hono";
+app.route("/admin/queues", bullwatchHono({ connection }));
+```
+
+All adapters take the same [`BullwatchOptions`](packages/core/src/server/app.ts)
+(`connection`, `prefix`, `queues`, `readOnly`, `collectMetrics`, `mask`, `auth`, …).
 
 ## Development
 

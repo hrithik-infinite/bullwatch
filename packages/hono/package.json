@@ -1,8 +1,19 @@
 {
   "name": "@bullwatch/hono",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Hono adapter for bullwatch — mount the dashboard as a sub-app.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrithik-infinite/bullwatch.git",
+    "directory": "packages/hono"
+  },
+  "homepage": "https://hrithik-infinite.github.io/bullwatch/",
+  "bugs": "https://github.com/hrithik-infinite/bullwatch/issues",
+  "keywords": ["bullmq", "hono", "dashboard", "queue", "monitoring"],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {

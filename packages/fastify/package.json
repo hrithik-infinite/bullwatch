@@ -1,8 +1,19 @@
 {
   "name": "@bullwatch/fastify",
-  "version": "0.0.0",
+  "version": "0.1.0-beta.0",
   "description": "Fastify adapter for bullwatch — mount the dashboard as a plugin.",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrithik-infinite/bullwatch.git",
+    "directory": "packages/fastify"
+  },
+  "homepage": "https://hrithik-infinite.github.io/bullwatch/",
+  "bugs": "https://github.com/hrithik-infinite/bullwatch/issues",
+  "keywords": ["bullmq", "fastify", "dashboard", "queue", "monitoring"],
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "exports": {
     ".": {
