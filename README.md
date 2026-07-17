@@ -1,5 +1,10 @@
 # bullwatch
 
+[![npm](https://img.shields.io/npm/v/bullwatch/beta?color=cb3837&logo=npm)](https://www.npmjs.com/package/bullwatch)
+[![CI](https://github.com/hrithik-infinite/bullwatch/actions/workflows/ci.yml/badge.svg)](https://github.com/hrithik-infinite/bullwatch/actions/workflows/ci.yml)
+[![license](https://img.shields.io/npm/l/bullwatch?color=blue)](LICENSE)
+[![live demo](https://img.shields.io/badge/demo-live-brightgreen)](https://hrithik-infinite.github.io/bullwatch/)
+
 A deep, fast, **local-first** dashboard and observability tool for [BullMQ](https://bullmq.io).
 
 Inspect and operate your queues with the depth of a commercial tool, on infrastructure you control — no account, no telemetry, no external calls. Job payloads are read live from Redis, rendered, and forgotten: **nothing sensitive is ever written to disk**.
@@ -98,6 +103,10 @@ pnpm test        # unit + integration; integration uses redis-memory-server,
                  # or set REDIS_URL to point at your own Redis
 pnpm build && pnpm typecheck && pnpm lint && pnpm check:no-network
 ```
+
+## Contributing
+
+bullwatch is in beta and contributions are welcome — see **[CONTRIBUTING.md](CONTRIBUTING.md)** for the dev setup, the check suite CI enforces, and the two invariants every PR must respect (**payloads never persisted**, **zero external network calls**). Bug reports and feature ideas: [open an issue](https://github.com/hrithik-infinite/bullwatch/issues).
 
 ## License
 
