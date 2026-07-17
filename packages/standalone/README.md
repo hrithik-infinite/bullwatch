@@ -35,9 +35,9 @@ docker run -p 3000:3000 -e REDIS_URL=redis://host.docker.internal:6379 bullwatch
 ```
 
 To embed the dashboard inside an existing app instead, use
-[`@bullwatch/express`](https://www.npmjs.com/package/@bullwatch/express),
-[`@bullwatch/fastify`](https://www.npmjs.com/package/@bullwatch/fastify), or
-[`@bullwatch/hono`](https://www.npmjs.com/package/@bullwatch/hono).
+[`bullwatch-express`](https://www.npmjs.com/package/bullwatch-express),
+[`bullwatch-fastify`](https://www.npmjs.com/package/bullwatch-fastify), or
+[`bullwatch-hono`](https://www.npmjs.com/package/bullwatch-hono).
 
 ## License
 

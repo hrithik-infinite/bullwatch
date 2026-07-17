@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["hono", "@bullwatch/core"],
+  external: ["hono", "bullwatch-core"],
 });

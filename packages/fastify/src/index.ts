@@ -1,7 +1,7 @@
-import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "@bullwatch/core";
+import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "bullwatch-core";
 import type { FastifyPluginAsync, FastifyReply, FastifyRequest } from "fastify";
 
-export type { BullwatchOptions } from "@bullwatch/core";
+export type { BullwatchOptions } from "bullwatch-core";
 
 /**
  * Fastify plugin that serves the bullwatch dashboard. Register it under any
@@ -12,7 +12,7 @@ export type { BullwatchOptions } from "@bullwatch/core";
  *   });
  *
  * A thin shell: it forwards every request to the one framework-agnostic fetch
- * handler in @bullwatch/core and streams the response back.
+ * handler in bullwatch-core and streams the response back.
  */
 export function bullwatchFastify(options: BullwatchOptions): FastifyPluginAsync {
   const app: BullwatchApp = createBullwatch(options);

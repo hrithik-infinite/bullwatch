@@ -65,7 +65,7 @@ Mount the dashboard on any route of an existing server:
 ```ts
 // Express
 import express from "express";
-import { bullwatchExpress } from "@bullwatch/express";
+import { bullwatchExpress } from "bullwatch-express";
 
 const app = express();
 app.use("/admin/queues", bullwatchExpress({
@@ -77,13 +77,13 @@ app.use("/admin/queues", bullwatchExpress({
 
 ```ts
 // Fastify
-import { bullwatchFastify } from "@bullwatch/fastify";
+import { bullwatchFastify } from "bullwatch-fastify";
 app.register(bullwatchFastify({ connection }), { prefix: "/admin/queues" });
 ```
 
 ```ts
 // Hono
-import { bullwatchHono } from "@bullwatch/hono";
+import { bullwatchHono } from "bullwatch-hono";
 app.route("/admin/queues", bullwatchHono({ connection }));
 ```
 

@@ -1,4 +1,4 @@
-import type { AlertsConfig } from "@bullwatch/core";
+import type { AlertsConfig } from "bullwatch-core";
 import type { RedisOptions } from "ioredis";
 
 export interface StandaloneConfig {

@@ -1,5 +1,5 @@
 {
-  "name": "@bullwatch/express",
+  "name": "bullwatch-express",
   "version": "0.1.0-beta.0",
   "description": "Express adapter for bullwatch — mount the dashboard in one line.",
   "license": "MIT",
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bullwatch/core": "workspace:*"
+    "bullwatch-core": "workspace:*"
   },
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0"

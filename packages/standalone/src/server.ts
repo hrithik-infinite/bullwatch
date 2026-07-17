@@ -4,7 +4,7 @@ import {
   MemoryMetricsStore,
   RedisMetricsStore,
   createBullwatch,
-} from "@bullwatch/core";
+} from "bullwatch-core";
 import type { StandaloneConfig } from "./config.js";
 
 /** Build the bullwatch app from standalone config, choosing the metrics tier. */

@@ -6,5 +6,5 @@ export default defineConfig({
   dts: true,
   clean: true,
   sourcemap: true,
-  external: ["fastify", "@bullwatch/core"],
+  external: ["fastify", "bullwatch-core"],
 });

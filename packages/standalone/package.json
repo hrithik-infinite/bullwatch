@@ -21,7 +21,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@bullwatch/core": "workspace:*",
+    "bullwatch-core": "workspace:*",
     "bullmq": "^5.34.0",
     "ioredis": "^5.11.1"
   }

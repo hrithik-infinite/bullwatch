@@ -1,7 +1,7 @@
-import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "@bullwatch/core";
+import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "bullwatch-core";
 import type { Request as ExpressRequest, Response as ExpressResponse, NextFunction } from "express";
 
-export type { BullwatchOptions } from "@bullwatch/core";
+export type { BullwatchOptions } from "bullwatch-core";
 
 /**
  * Create an Express handler that serves the bullwatch dashboard. Mount it under
@@ -11,7 +11,7 @@ export type { BullwatchOptions } from "@bullwatch/core";
  *
  * The adapter is deliberately thin: it converts the incoming Express request to
  * a web-standard Request, hands it to the one framework-agnostic fetch handler
- * in @bullwatch/core, and streams the Response back.
+ * in bullwatch-core, and streams the Response back.
  */
 export function bullwatchExpress(options: BullwatchOptions) {
   const app: BullwatchApp = createBullwatch(options);

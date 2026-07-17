@@ -1,7 +1,7 @@
-import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "@bullwatch/core";
+import { type BullwatchApp, type BullwatchOptions, createBullwatch } from "bullwatch-core";
 import { Hono } from "hono";
 
-export type { BullwatchOptions } from "@bullwatch/core";
+export type { BullwatchOptions } from "bullwatch-core";
 
 /**
  * Return a Hono app serving the bullwatch dashboard. Mount it into your own

@@ -1,4 +1,4 @@
-// Public API surface for @bullwatch/core.
+// Public API surface for bullwatch-core.
 
 // --- storage / persistence boundary ---
 export type {

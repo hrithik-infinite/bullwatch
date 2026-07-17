@@ -1,16 +1,16 @@
-# @bullwatch/express
+# bullwatch-express
 
 Express adapter for **[bullwatch](https://github.com/hrithik-infinite/bullwatch)** — a deep, local-first [BullMQ](https://bullmq.io) dashboard. Mount it on any route in one line.
 
 **[▶ Live demo](https://hrithik-infinite.github.io/bullwatch/)**
 
 ```sh
-npm i @bullwatch/express@beta
+npm i bullwatch-express@beta
 ```
 
 ```ts
 import express from "express";
-import { bullwatchExpress } from "@bullwatch/express";
+import { bullwatchExpress } from "bullwatch-express";
 
 const app = express();
 app.use("/admin/queues", bullwatchExpress({
@@ -21,7 +21,7 @@ app.use("/admin/queues", bullwatchExpress({
 }));
 ```
 
-Accepts the full [`BullwatchOptions`](https://www.npmjs.com/package/@bullwatch/core)
+Accepts the full [`BullwatchOptions`](https://www.npmjs.com/package/bullwatch-core)
 (`connection`, `prefix`, `queues`, `readOnly`, `collectMetrics`, `mask`, `auth`, …).
 Payloads are read live from Redis and never persisted; zero external network calls.
 

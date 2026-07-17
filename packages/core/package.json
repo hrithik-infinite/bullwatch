@@ -1,5 +1,5 @@
 {
-  "name": "@bullwatch/core",
+  "name": "bullwatch-core",
   "version": "0.1.0-beta.0",
   "description": "Core server and storage for bullwatch — a deep, local-first BullMQ dashboard.",
   "license": "MIT",
