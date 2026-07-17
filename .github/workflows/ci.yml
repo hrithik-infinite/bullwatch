@@ -44,11 +44,13 @@ jobs:
       - name: Lint
         run: pnpm lint
 
-      - name: Typecheck
-        run: pnpm typecheck
-
+      # Build first: adapters' typecheck resolves bullwatch-core via its built
+      # dist/*.d.ts, so the packages must be built before tsc runs.
       - name: Build
         run: pnpm build
+
+      - name: Typecheck
+        run: pnpm typecheck
 
       - name: Unit + integration tests
         run: pnpm test
