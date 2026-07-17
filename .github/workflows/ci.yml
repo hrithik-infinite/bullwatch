@@ -1,22 +1,38 @@
 name: CI
 
-# Temporarily disabled: runs on manual trigger only (Actions tab → Run workflow).
-# To re-enable automatic runs, restore the push/pull_request triggers below.
 on:
-  workflow_dispatch:
-  # push:
-  #   branches: [main]
-  # pull_request:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Point the integration tests at the Redis service instead of downloading
+      # an in-process redis-memory-server binary.
+      REDIS_URL: redis://localhost:6379
+      REDISMS_DISABLE_POSTINSTALL: "1"
+
     steps:
       - uses: actions/checkout@v4
 
+      # No `version:` — pnpm/action-setup reads pnpm@9.15.0 from package.json's
+      # packageManager field; specifying both errors with ERR_PNPM_BAD_PM_VERSION.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 9
 
       - uses: actions/setup-node@v4
         with:
@@ -34,7 +50,7 @@ jobs:
       - name: Build
         run: pnpm build
 
-      - name: Unit tests
+      - name: Unit + integration tests
         run: pnpm test
 
       - name: No-network gate (shipped bundles make zero external calls)
