@@ -44,8 +44,8 @@ The dominant OSS option ([bull-board](https://github.com/felixmosh/bull-board)) 
 - Deploy markers to overlay on charts, and threshold alerts (failure rate,
   queue depth, latency) delivered to your own webhooks — Slack, Discord,
   PagerDuty — with nothing routed through a third party.
-- Framework-agnostic HTTP `fetch` handler with **Express, Fastify, and Hono**
-  adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.
+- Framework-agnostic HTTP `fetch` handler with **Express, Fastify, Hono, and
+  NestJS** adapters, plus a standalone **`npx bullwatch`** CLI and Docker image.
 
 ## Quick start
 
@@ -90,6 +90,12 @@ app.register(bullwatchFastify({ connection }), { prefix: "/admin/queues" });
 // Hono
 import { bullwatchHono } from "bullwatch-hono";
 app.route("/admin/queues", bullwatchHono({ connection }));
+```
+
+```ts
+// NestJS (imports in your AppModule)
+import { BullwatchModule } from "bullwatch-nestjs";
+// imports: [BullwatchModule.forRoot({ path: "/admin/queues", connection })]
 ```
 
 All adapters take the same [`BullwatchOptions`](packages/core/src/server/app.ts)

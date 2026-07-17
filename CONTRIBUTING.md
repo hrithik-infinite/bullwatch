@@ -15,7 +15,7 @@ A pnpm workspace (TypeScript, strict). The web UI is a separate app.
 | Path | What it is |
 |---|---|
 | `packages/core` (`bullwatch-core`) | Readers, actions, search, storage tiers, live-metrics collector, alerts, framework-agnostic `fetch` handler |
-| `packages/express` · `fastify` · `hono` | Thin framework adapters over core |
+| `packages/express` · `fastify` · `hono` · `nestjs` | Thin framework adapters over core |
 | `packages/standalone` (`bullwatch`) | `npx bullwatch` CLI + Docker server |
 | `apps/web` | React + Vite dashboard (talks to the core HTTP API) |
 

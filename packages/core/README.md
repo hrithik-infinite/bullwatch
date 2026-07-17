@@ -10,6 +10,7 @@ Most users want a framework adapter or the standalone server, not this package d
 - [`bullwatch-express`](https://www.npmjs.com/package/bullwatch-express)
 - [`bullwatch-fastify`](https://www.npmjs.com/package/bullwatch-fastify)
 - [`bullwatch-hono`](https://www.npmjs.com/package/bullwatch-hono)
+- [`bullwatch-nestjs`](https://www.npmjs.com/package/bullwatch-nestjs)
 
 ## Direct use
 

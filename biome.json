@@ -20,7 +20,8 @@
     }
   },
   "javascript": {
-    "formatter": { "quoteStyle": "double", "semicolons": "always" }
+    "formatter": { "quoteStyle": "double", "semicolons": "always" },
+    "parser": { "unsafeParameterDecoratorsEnabled": true }
   },
   "overrides": [
     {

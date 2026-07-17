@@ -1,0 +1,40 @@
+{
+  "name": "bullwatch-nestjs",
+  "version": "0.1.0-beta.0",
+  "description": "NestJS module for bullwatch — mount the dashboard with BullwatchModule.forRoot().",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hrithik-infinite/bullwatch.git",
+    "directory": "packages/nestjs"
+  },
+  "homepage": "https://hrithik-infinite.github.io/bullwatch/",
+  "bugs": "https://github.com/hrithik-infinite/bullwatch/issues",
+  "keywords": ["bullmq", "nestjs", "dashboard", "queue", "monitoring"],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullwatch-express": "workspace:*"
+  },
+  "peerDependencies": {
+    "@nestjs/common": "^10.0.0 || ^11.0.0",
+    "@nestjs/core": "^10.0.0 || ^11.0.0"
+  },
+  "devDependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  }
+}
