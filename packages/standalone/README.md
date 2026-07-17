@@ -27,7 +27,13 @@ REDIS_URL=redis://localhost:6379 npx bullwatch@beta
 
 ## Docker
 
-Build from the repo (context is the repo root):
+Pull the published image from GHCR:
+
+```sh
+docker run -p 3000:3000 -e REDIS_URL=redis://host:6379 ghcr.io/hrithik-infinite/bullwatch:beta
+```
+
+or build it from the repo (context is the repo root):
 
 ```sh
 docker build -f packages/standalone/Dockerfile -t bullwatch .

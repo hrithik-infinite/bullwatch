@@ -1,0 +1,10 @@
+# Keep the build context small and let the image rebuild from source.
+**/node_modules
+**/dist
+.git
+.github
+apps
+docs
+coverage
+*.tgz
+*.log

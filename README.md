@@ -60,8 +60,11 @@ REDIS_URL=redis://localhost:6379 npx bullwatch@beta
 
 Configure via env: `BULLWATCH_QUEUES`, `BULLWATCH_READONLY`, `BULLWATCH_MASK`
 (comma-separated dotted paths to redact), `BULLWATCH_ALERTS` (JSON rules),
-`BULLWATCH_AUTH_USERNAME`/`PASSWORD`. Or build the Docker image from
-`packages/standalone/Dockerfile`.
+`BULLWATCH_AUTH_USERNAME`/`PASSWORD`. Or run the Docker image:
+
+```sh
+docker run -p 3000:3000 -e REDIS_URL=redis://host:6379 ghcr.io/hrithik-infinite/bullwatch:beta
+```
 
 ### Embed in your app
 
